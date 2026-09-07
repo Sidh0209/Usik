@@ -284,6 +284,10 @@
             <button class="spotify-big-play-btn" id="btn-playlist-play" title="Play Playlist">
               <svg width="24" height="24" viewBox="0 0 24 24" fill="#000000"><polygon points="6 4 20 12 6 20 6 4"></polygon></svg>
             </button>
+            <button class="btn-ghost-icon danger" id="btn-delete-playlist" title="Delete this custom playlist" style="display: none; width: 44px; height: 44px; border-radius: 50%; background: rgba(239, 68, 68, 0.15); border: 1px solid rgba(239, 68, 68, 0.3); color: #f87171; cursor: pointer; align-items: center; justify-content: center; font-size: 1.1rem; transition: transform 0.2s, background 0.2s;">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>
+            </button>
+            <button class="btn-ghost-sm" id="btn-playlist-add-tracks" style="display: none;">+ Browse Songs</button>
           </div>
 
           <!-- Playlist Table -->
@@ -458,6 +462,26 @@
       <div class="modal-footer">
         <button class="btn-text" id="btn-cancel-playlist">Cancel</button>
         <button class="btn-spotify-green" id="btn-save-playlist">Create</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Add Track to Playlist Modal -->
+  <div class="modal-backdrop" id="add-to-playlist-modal">
+    <div class="modal-box" style="max-width: 440px;">
+      <div class="auth-modal-header-row">
+        <h3 class="modal-header">Add to Playlist</h3>
+        <button class="drawer-close-btn" id="btn-close-add-to-playlist-modal">✕</button>
+      </div>
+      <p class="modal-subtext" id="add-to-playlist-song-info">Select playlists for this song:</p>
+      
+      <div class="playlists-select-list" id="playlists-select-list" style="max-height: 240px; overflow-y: auto; margin: 16px 0; display: flex; flex-direction: column; gap: 8px;">
+        <!-- Dynamically rendered playlists -->
+      </div>
+
+      <div class="modal-footer" style="justify-content: space-between;">
+        <button class="btn-ghost-sm" id="btn-create-new-pl-from-picker">+ New Playlist</button>
+        <button class="btn-spotify-green" id="btn-done-add-to-playlist">Done</button>
       </div>
     </div>
   </div>

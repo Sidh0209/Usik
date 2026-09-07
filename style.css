@@ -1461,7 +1461,7 @@ body {
 
 .table-header-row {
   display: grid;
-  grid-template-columns: 36px 4fr 3fr 2fr 86px;
+  grid-template-columns: 36px 4fr 3fr 2fr 115px;
   padding: 8px 16px;
   border-bottom: 1px solid rgba(255, 255, 255, 0.1);
   color: var(--text-muted);
@@ -1474,7 +1474,7 @@ body {
 
 .table-row {
   display: grid;
-  grid-template-columns: 36px 4fr 3fr 2fr 86px;
+  grid-template-columns: 36px 4fr 3fr 2fr 115px;
   padding: 8px 16px;
   border-radius: 6px;
   align-items: center;
@@ -1654,6 +1654,92 @@ body {
 
 .row-delete-icon:active {
   transform: scale(0.9);
+}
+
+/* Add to Playlist & Remove from Playlist Row Action Buttons */
+.row-add-pl-btn,
+.row-remove-pl-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  opacity: 0;
+  font-size: 0.9rem;
+  padding: 3px 5px;
+  border-radius: 4px;
+  line-height: 1;
+  transition: opacity var(--trans-fast), transform var(--trans-spring), color var(--trans-fast), background var(--trans-fast);
+}
+
+.table-row:hover .row-add-pl-btn,
+.table-row:hover .row-remove-pl-btn {
+  opacity: 0.8;
+}
+
+.row-add-pl-btn:hover {
+  opacity: 1;
+  color: var(--sp-purple-bright);
+  background: rgba(168, 85, 247, 0.18);
+  transform: scale(1.22);
+}
+
+.row-remove-pl-btn:hover {
+  opacity: 1;
+  color: #ff5c5c;
+  background: rgba(255, 92, 92, 0.18);
+  transform: scale(1.22);
+}
+
+/* Playlist Picker inside Add to Playlist Modal */
+.playlist-picker-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  cursor: pointer;
+  transition: background var(--trans-fast), border-color var(--trans-fast), transform var(--trans-fast);
+}
+
+.playlist-picker-item:hover {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(168, 85, 247, 0.4);
+  transform: translateX(3px);
+}
+
+.playlist-picker-item.in-playlist {
+  border-color: var(--sp-purple);
+  background: rgba(168, 85, 247, 0.14);
+}
+
+.playlist-picker-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.playlist-picker-name {
+  font-weight: 600;
+  font-size: 0.92rem;
+  color: #ffffff;
+}
+
+.playlist-picker-count {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.playlist-picker-action-icon {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--text-muted);
+  transition: color var(--trans-fast);
+}
+
+.playlist-picker-item.in-playlist .playlist-picker-action-icon {
+  color: var(--sp-purple-bright);
 }
 
 /* ==========================================================================

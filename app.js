@@ -138,6 +138,9 @@ class UsikSpotifyApp {
       playlistHeroName: document.getElementById("playlist-hero-name"),
       playlistSongsCount: document.getElementById("playlist-songs-count"),
       btnPlaylistPlay: document.getElementById("btn-playlist-play"),
+      btnDeletePlaylist: document.getElementById("btn-delete-playlist"),
+      btnPlaylistAddTracks: document.getElementById("btn-playlist-add-tracks"),
+      playlistHeroCover: document.getElementById("playlist-hero-cover"),
 
       // Bottom Now Playing Bar
       playerThumb: document.getElementById("player-track-thumb"),
@@ -180,6 +183,14 @@ class UsikSpotifyApp {
       playlistInput: document.getElementById("playlist-name-input"),
       btnSavePlaylist: document.getElementById("btn-save-playlist"),
       btnCancelPlaylist: document.getElementById("btn-cancel-playlist"),
+
+      // Add to Playlist Picker Modal
+      addToPlaylistModal: document.getElementById("add-to-playlist-modal"),
+      btnCloseAddToPlaylistModal: document.getElementById("btn-close-add-to-playlist-modal"),
+      btnDoneAddToPlaylist: document.getElementById("btn-done-add-to-playlist"),
+      playlistsSelectList: document.getElementById("playlists-select-list"),
+      addToPlaylistSongInfo: document.getElementById("add-to-playlist-song-info"),
+      btnCreateNewPlFromPicker: document.getElementById("btn-create-new-pl-from-picker"),
 
       // Auth Header
       authGuestBtns: document.getElementById("auth-guest-btns"),
@@ -967,6 +978,7 @@ class UsikSpotifyApp {
         <div class="col-genre">${track.genre}</div>
         <div class="col-duration-flex">
           <button class="row-vibe-btn" data-vibe-id="${track.id}" title="Play Vibe Radio from this song">✨</button>
+          <button class="row-add-pl-btn" data-add-pl-id="${track.id}" title="Add to playlist">➕</button>
           ${track.isCustom ? `<button class="row-delete-icon" data-delete-id="${track.id}" title="Remove song">✕</button>` : ""}
           <button class="row-like-icon ${isLiked ? "liked" : ""}" data-like-id="${track.id}">
             ${isLiked ? "♥" : "♡"}
@@ -976,7 +988,7 @@ class UsikSpotifyApp {
       `;
 
       row.addEventListener("click", (e) => {
-        if (e.target.closest(".row-like-icon") || e.target.closest(".row-delete-icon") || e.target.closest(".row-vibe-btn") || e.target.closest(".row-play-btn")) return;
+        if (e.target.closest(".row-like-icon") || e.target.closest(".row-delete-icon") || e.target.closest(".row-vibe-btn") || e.target.closest(".row-play-btn") || e.target.closest(".row-add-pl-btn")) return;
         this.playTrackById(track.id);
       });
 
@@ -985,6 +997,14 @@ class UsikSpotifyApp {
         rowPlayBtn.addEventListener("click", (e) => {
           e.stopPropagation();
           this.playTrackById(track.id);
+        });
+      }
+
+      const addPlBtn = row.querySelector(`[data-add-pl-id="${track.id}"]`);
+      if (addPlBtn) {
+        addPlBtn.addEventListener("click", (e) => {
+          e.stopPropagation();
+          this.openAddToPlaylistModal(track.id);
         });
       }
 
@@ -1018,38 +1038,122 @@ class UsikSpotifyApp {
     });
   }
 
+  normalizePlaylist(pl) {
+    if (!pl) return null;
+    if (typeof pl === "string") {
+      const slug = pl.toLowerCase().replace(/[^a-z0-9]+/g, "-");
+      let initialTracks = [];
+      if (pl.toLowerCase().includes("chill")) initialTracks = ["track-spatial-2", "track-spatial-8", "track-holly-12"];
+      else if (pl.toLowerCase().includes("cyber")) initialTracks = ["track-spatial-3", "track-spatial-1", "track-holly-2"];
+      else if (pl.toLowerCase().includes("focus")) initialTracks = ["track-spatial-4", "track-holly-19"];
+      return { id: "pl-" + slug, name: pl, trackIds: initialTracks };
+    }
+    return {
+      id: pl.id || ("pl-" + (pl.name || "custom").toLowerCase().replace(/[^a-z0-9]+/g, "-")),
+      name: pl.name || "Untitled Playlist",
+      trackIds: Array.isArray(pl.trackIds) ? [...pl.trackIds] : []
+    };
+  }
+
+  getPlaylistByIdOrName(idOrName) {
+    if (!idOrName) return null;
+    const target = String(idOrName).toLowerCase().trim();
+    return (this.customPlaylists || []).find(p => {
+      const norm = this.normalizePlaylist(p);
+      return norm.id.toLowerCase() === target || norm.name.toLowerCase() === target;
+    }) || null;
+  }
+
+  savePlaylists() {
+    this.customPlaylists = (this.customPlaylists || []).map(p => this.normalizePlaylist(p)).filter(Boolean);
+    localStorage.setItem("usik_playlists", JSON.stringify(this.customPlaylists));
+    this.saveCurrentUserData();
+  }
+
   renderLibraryList() {
+    if (!this.dom.customPlaylistsContainer) return;
     this.dom.customPlaylistsContainer.innerHTML = "";
-    this.customPlaylists.forEach((name) => {
+    
+    // Normalize custom playlists
+    this.customPlaylists = (this.customPlaylists || []).map(p => this.normalizePlaylist(p)).filter(Boolean);
+
+    this.customPlaylists.forEach((rawPl) => {
+      const p = this.normalizePlaylist(rawPl);
+      const isActive = this.currentView === "library" && this.currentPlaylistId === p.id;
       const item = document.createElement("div");
-      item.className = "lib-item-card";
+      item.className = `lib-item-card ${isActive ? "active" : ""}`;
+      item.dataset.playlistId = p.id;
       item.innerHTML = `
-        <div class="liked-songs-gradient-icon" style="background:#282828;">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="#b3b3b3"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 14H9V8h2v8zm4 0h-2V8h2v8z"/></svg>
+        <div class="liked-songs-gradient-icon" style="background: linear-gradient(135deg, #7c3aed 0%, #3b82f6 100%);">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="#ffffff"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 14H9V8h2v8zm4 0h-2V8h2v8z"/></svg>
         </div>
         <div class="lib-meta">
-          <span class="lib-title">${name}</span>
-          <span class="lib-sub">Playlist • Siddharth</span>
+          <span class="lib-title">${p.name}</span>
+          <span class="lib-sub">Playlist • ${p.trackIds.length} song${p.trackIds.length === 1 ? "" : "s"}</span>
         </div>
       `;
       item.addEventListener("click", () => {
-        this.openLibraryView(name);
+        this.openPlaylistById(p.id);
       });
       this.dom.customPlaylistsContainer.appendChild(item);
     });
   }
 
-  openLibraryView(title = "Liked Songs") {
+  openPlaylistById(playlistId) {
+    const pl = this.getPlaylistByIdOrName(playlistId);
+    if (!pl) return;
+    this.currentPlaylistId = pl.id;
+    this.openLibraryView(pl.name, pl.id);
+  }
+
+  openLibraryView(title = "Liked Songs", playlistId = null) {
     this.switchView("library");
     this.dom.playlistHeroName.textContent = title;
 
     let tracks = [];
+    let isCustomPlaylist = false;
+    let currentPl = null;
+
     if (title === "Liked Songs") {
+      this.currentPlaylistId = "liked";
       tracks = this.tracks.filter(t => this.likedTrackIds.has(t.id));
+      if (this.dom.playlistHeroCover) {
+        this.dom.playlistHeroCover.style.background = "linear-gradient(135deg, #7e22ce, #c084fc)";
+        this.dom.playlistHeroCover.innerHTML = `<svg width="64" height="64" viewBox="0 0 24 24" fill="#ffffff"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>`;
+      }
+      if (this.dom.btnDeletePlaylist) this.dom.btnDeletePlaylist.style.display = "none";
+      if (this.dom.btnPlaylistAddTracks) this.dom.btnPlaylistAddTracks.style.display = "none";
     } else if (title === "Your Uploads") {
+      this.currentPlaylistId = "uploads";
       tracks = this.getUserUploads();
+      if (this.dom.playlistHeroCover) {
+        this.dom.playlistHeroCover.style.background = "linear-gradient(135deg, #a855f7, #3b82f6)";
+        this.dom.playlistHeroCover.innerHTML = `<svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>`;
+      }
+      if (this.dom.btnDeletePlaylist) this.dom.btnDeletePlaylist.style.display = "none";
+      if (this.dom.btnPlaylistAddTracks) this.dom.btnPlaylistAddTracks.style.display = "none";
     } else {
-      tracks = this.tracks;
+      isCustomPlaylist = true;
+      currentPl = this.getPlaylistByIdOrName(playlistId || title);
+      if (currentPl) {
+        this.currentPlaylistId = currentPl.id;
+        const targetIds = Array.isArray(currentPl.trackIds) ? currentPl.trackIds : [];
+        tracks = targetIds.map(id => this.tracks.find(t => t.id === id)).filter(Boolean);
+
+        if (this.dom.playlistHeroCover) {
+          if (tracks.length > 0 && tracks[0].coverUrl) {
+            this.dom.playlistHeroCover.style.background = `url(${tracks[0].coverUrl}) center/cover no-repeat`;
+            this.dom.playlistHeroCover.innerHTML = "";
+          } else {
+            this.dom.playlistHeroCover.style.background = "linear-gradient(135deg, #6366f1, #a855f7)";
+            this.dom.playlistHeroCover.innerHTML = `<svg width="64" height="64" viewBox="0 0 24 24" fill="#ffffff"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 14H9V8h2v8zm4 0h-2V8h2v8z"/></svg>`;
+          }
+        }
+        if (this.dom.btnDeletePlaylist) this.dom.btnDeletePlaylist.style.display = "inline-flex";
+        if (this.dom.btnPlaylistAddTracks) this.dom.btnPlaylistAddTracks.style.display = "inline-block";
+      } else {
+        tracks = [];
+      }
     }
 
     // Toggle sidebar library pill active states
@@ -1060,7 +1164,7 @@ class UsikSpotifyApp {
       this.dom.pillLikedLib.classList.toggle("active", title === "Liked Songs");
     }
     if (this.dom.pillAllLib) {
-      this.dom.pillAllLib.classList.toggle("active", title !== "Your Uploads" && title !== "Liked Songs");
+      this.dom.pillAllLib.classList.toggle("active", isCustomPlaylist);
     }
 
     // Toggle sidebar item active state
@@ -1070,6 +1174,9 @@ class UsikSpotifyApp {
     if (this.dom.libItemUploads) {
       this.dom.libItemUploads.classList.toggle("active", title === "Your Uploads");
     }
+    document.querySelectorAll(".lib-item-card[data-playlist-id]").forEach(card => {
+      card.classList.toggle("active", isCustomPlaylist && currentPl && card.dataset.playlistId === currentPl.id);
+    });
 
     this.dom.playlistSongsCount.textContent = `${tracks.length} song${tracks.length === 1 ? "" : "s"}`;
     this.dom.libraryTableBody.innerHTML = "";
@@ -1078,15 +1185,25 @@ class UsikSpotifyApp {
       const emptyRow = document.createElement("div");
       emptyRow.style.cssText = "padding: 56px 24px; text-align: center; color: var(--text-muted);";
       emptyRow.innerHTML = `
-        <div style="font-size: 2.5rem; margin-bottom: 12px;">${title === "Your Uploads" ? "☁️" : "🎵"}</div>
+        <div style="font-size: 2.5rem; margin-bottom: 12px;">${isCustomPlaylist ? "📭" : (title === "Your Uploads" ? "☁️" : "🎵")}</div>
         <div style="font-size: 1.1rem; font-weight: 600; color: #fff; margin-bottom: 6px;">
-          ${title === "Your Uploads" ? "No uploaded songs yet" : "No songs found"}
+          ${isCustomPlaylist ? `"${title}" is currently empty` : (title === "Your Uploads" ? "No uploaded songs yet" : "No liked songs yet")}
         </div>
         <div style="font-size: 0.85rem; margin-bottom: 18px;">
-          ${title === "Your Uploads" ? "Import any YouTube link or audio stream to build your personal streaming library." : "Start exploring and add songs to this playlist."}
+          ${isCustomPlaylist ? "Click ➕ on any song in the catalog or search view to add it to this playlist." : (title === "Your Uploads" ? "Import any YouTube link or audio stream to build your personal streaming library." : "Tap the heart icon on any song to add it to your Liked Songs.")}
         </div>
-        ${title === "Your Uploads" ? `<button class="btn-primary" id="btn-empty-upload-now" style="margin: 0 auto; display: inline-flex; align-items: center; gap: 8px; cursor: pointer;"><span>⚡</span> Upload Your First Song</button>` : ""}
+        ${isCustomPlaylist ? `<button class="btn-primary" id="btn-empty-browse-catalog" style="margin: 0 auto; display: inline-flex; align-items: center; gap: 8px; cursor: pointer;"><span>🔍</span> Browse Catalog to Add Songs</button>` : (title === "Your Uploads" ? `<button class="btn-primary" id="btn-empty-upload-now" style="margin: 0 auto; display: inline-flex; align-items: center; gap: 8px; cursor: pointer;"><span>⚡</span> Upload Your First Song</button>` : "")}
       `;
+      const btnBrowse = emptyRow.querySelector("#btn-empty-browse-catalog");
+      if (btnBrowse) {
+        btnBrowse.addEventListener("click", () => {
+          this.switchView("home");
+          if (this.dom.tracksTableBody) {
+            this.dom.tracksTableBody.scrollIntoView({ behavior: "smooth", block: "start" });
+          }
+          this.showToast("Click ➕ on any track to add it to your playlist!");
+        });
+      }
       const btnUploadNow = emptyRow.querySelector("#btn-empty-upload-now");
       if (btnUploadNow) {
         btnUploadNow.addEventListener("click", () => this.dom.btnOpenImport.click());
@@ -1120,7 +1237,8 @@ class UsikSpotifyApp {
         <div class="col-album">${track.album}</div>
         <div class="col-genre">${track.genre}</div>
         <div class="col-duration-flex">
-          ${track.isCustom ? `<button class="row-delete-icon" data-delete-id="${track.id}" title="Remove song">✕</button>` : ""}
+          ${isCustomPlaylist ? `<button class="row-remove-pl-btn" data-remove-pl-song="${track.id}" title="Remove from this playlist">✕</button>` : `<button class="row-add-pl-btn" data-add-pl-id="${track.id}" title="Add to playlist">➕</button>`}
+          ${track.isCustom && !isCustomPlaylist ? `<button class="row-delete-icon" data-delete-id="${track.id}" title="Remove song">✕</button>` : ""}
           <button class="row-like-icon ${isLiked ? "liked" : ""}" data-like-id="${track.id}">
             ${isLiked ? "♥" : "♡"}
           </button>
@@ -1128,7 +1246,7 @@ class UsikSpotifyApp {
         </div>
       `;
       row.addEventListener("click", (e) => {
-        if (e.target.closest(".row-like-icon") || e.target.closest(".row-delete-icon") || e.target.closest(".row-play-btn")) return;
+        if (e.target.closest(".row-like-icon") || e.target.closest(".row-delete-icon") || e.target.closest(".row-play-btn") || e.target.closest(".row-add-pl-btn") || e.target.closest(".row-remove-pl-btn")) return;
         this.playTrackById(track.id);
       });
       const rowPlayBtn = row.querySelector(".row-play-btn");
@@ -1143,20 +1261,148 @@ class UsikSpotifyApp {
         likeBtn.addEventListener("click", (e) => {
           e.stopPropagation();
           this.toggleLike(track.id);
-          this.openLibraryView(title);
+          this.openLibraryView(title, playlistId);
+        });
+      }
+      const removePlBtn = row.querySelector(`[data-remove-pl-song="${track.id}"]`);
+      if (removePlBtn && currentPl) {
+        removePlBtn.addEventListener("click", (e) => {
+          e.stopPropagation();
+          this.removeTrackFromPlaylist(currentPl.id, track.id);
+        });
+      }
+      const addPlBtn = row.querySelector(`[data-add-pl-id="${track.id}"]`);
+      if (addPlBtn) {
+        addPlBtn.addEventListener("click", (e) => {
+          e.stopPropagation();
+          this.openAddToPlaylistModal(track.id);
         });
       }
       const deleteBtn = row.querySelector(`[data-delete-id="${track.id}"]`);
       if (deleteBtn) {
         deleteBtn.addEventListener("click", async (e) => {
           e.stopPropagation();
-          if (confirm(`Remove "${track.title}" from your library?`)) {
+          if (confirm(`Remove "${track.title}" from your uploads?`)) {
             await this.removeCustomTrack(track.id);
           }
         });
       }
       this.dom.libraryTableBody.appendChild(row);
     });
+  }
+
+  deletePlaylist(playlistId) {
+    const pl = this.getPlaylistByIdOrName(playlistId);
+    if (!pl) return;
+    if (confirm(`Are you sure you want to delete the playlist "${pl.name}"?`)) {
+      this.customPlaylists = (this.customPlaylists || []).filter(p => {
+        const norm = this.normalizePlaylist(p);
+        return norm.id !== pl.id && norm.name !== pl.name;
+      });
+      this.savePlaylists();
+      this.renderLibraryList();
+      this.openLibraryView("Liked Songs");
+      this.showToast(`🗑️ Deleted playlist "${pl.name}"`);
+    }
+  }
+
+  openAddToPlaylistModal(trackId) {
+    const track = this.tracks.find(t => t.id === trackId);
+    if (!track) return;
+    this.pendingAddToPlaylistTrackId = trackId;
+
+    if (this.dom.addToPlaylistSongInfo) {
+      this.dom.addToPlaylistSongInfo.textContent = `Add "${track.title}" by ${track.artist} to:`;
+    }
+
+    this.renderAddToPlaylistPicker(trackId);
+    if (this.dom.addToPlaylistModal) {
+      this.dom.addToPlaylistModal.classList.add("open");
+    }
+  }
+
+  closeAddToPlaylistModal() {
+    if (this.dom.addToPlaylistModal) {
+      this.dom.addToPlaylistModal.classList.remove("open");
+    }
+    this.pendingAddToPlaylistTrackId = null;
+  }
+
+  renderAddToPlaylistPicker(trackId) {
+    if (!this.dom.playlistsSelectList) return;
+    this.dom.playlistsSelectList.innerHTML = "";
+
+    // Normalize
+    this.customPlaylists = (this.customPlaylists || []).map(p => this.normalizePlaylist(p)).filter(Boolean);
+
+    if (this.customPlaylists.length === 0) {
+      const empty = document.createElement("div");
+      empty.style.cssText = "padding: 24px 12px; text-align: center; color: var(--text-muted); font-size: 0.9rem;";
+      empty.innerHTML = `You don't have any playlists yet.<br><button class="btn-primary" id="btn-create-first-pl" style="margin-top: 14px; display: inline-flex; align-items: center; gap: 6px; cursor: pointer;"><span>+</span> Create Your First Playlist</button>`;
+      const btn = empty.querySelector("#btn-create-first-pl");
+      if (btn) {
+        btn.addEventListener("click", () => {
+          this.closeAddToPlaylistModal();
+          if (this.dom.btnAddPlaylist) this.dom.btnAddPlaylist.click();
+        });
+      }
+      this.dom.playlistsSelectList.appendChild(empty);
+      return;
+    }
+
+    this.customPlaylists.forEach(rawPl => {
+      const p = this.normalizePlaylist(rawPl);
+      const inPlaylist = Array.isArray(p.trackIds) && p.trackIds.includes(trackId);
+      const item = document.createElement("div");
+      item.className = `playlist-picker-item ${inPlaylist ? "in-playlist" : ""}`;
+      item.innerHTML = `
+        <div class="playlist-picker-meta">
+          <span class="playlist-picker-name">${p.name}</span>
+          <span class="playlist-picker-count">${p.trackIds.length} song${p.trackIds.length === 1 ? "" : "s"}</span>
+        </div>
+        <span class="playlist-picker-action-icon">${inPlaylist ? "✓ Added" : "➕ Add"}</span>
+      `;
+      item.addEventListener("click", () => {
+        this.toggleTrackInPlaylist(p.id, trackId);
+        this.renderAddToPlaylistPicker(trackId);
+      });
+      this.dom.playlistsSelectList.appendChild(item);
+    });
+  }
+
+  toggleTrackInPlaylist(playlistId, trackId) {
+    const pl = this.getPlaylistByIdOrName(playlistId);
+    if (!pl) return;
+    const track = this.tracks.find(t => t.id === trackId);
+    const title = track ? track.title : "Song";
+
+    if (!Array.isArray(pl.trackIds)) pl.trackIds = [];
+
+    const idx = pl.trackIds.indexOf(trackId);
+    if (idx !== -1) {
+      pl.trackIds.splice(idx, 1);
+      this.showToast(`Removed "${title}" from "${pl.name}"`);
+    } else {
+      pl.trackIds.push(trackId);
+      this.showToast(`✨ Added "${title}" to "${pl.name}"`);
+    }
+    this.savePlaylists();
+    this.renderLibraryList();
+    if (this.currentView === "library" && this.currentPlaylistId === pl.id) {
+      this.openLibraryView(pl.name, pl.id);
+    }
+  }
+
+  removeTrackFromPlaylist(playlistId, trackId) {
+    const pl = this.getPlaylistByIdOrName(playlistId);
+    if (!pl) return;
+    const track = this.tracks.find(t => t.id === trackId);
+    const title = track ? track.title : "Song";
+    pl.trackIds = (pl.trackIds || []).filter(id => id !== trackId);
+    this.savePlaylists();
+    this.renderLibraryList();
+    this.openLibraryView(pl.name, pl.id);
+    this.showToast(`Removed "${title}" from "${pl.name}"`);
   }
 
   isCurrentlyPlaying() {
@@ -1577,7 +1823,12 @@ class UsikSpotifyApp {
         if (this.dom.pillUploadsLib) this.dom.pillUploadsLib.classList.remove("active");
         if (this.dom.pillLikedLib) this.dom.pillLikedLib.classList.remove("active");
         this.dom.pillAllLib.classList.add("active");
-        this.switchView("library");
+        if (this.customPlaylists && this.customPlaylists.length > 0) {
+          const firstPl = this.normalizePlaylist(this.customPlaylists[0]);
+          this.openPlaylistById(firstPl.id);
+        } else {
+          this.openLibraryView("Liked Songs");
+        }
       });
     }
 
@@ -1648,25 +1899,52 @@ class UsikSpotifyApp {
     if (this.dom.btnPlaylistPlay) {
       this.dom.btnPlaylistPlay.addEventListener("click", () => {
         const currentTitle = this.dom.playlistHeroName.textContent || "Liked Songs";
-      let playlistTracks = [];
-      if (currentTitle === "Your Uploads") {
-        playlistTracks = this.getUserUploads();
-      } else if (currentTitle === "Liked Songs") {
-        playlistTracks = this.tracks.filter(t => this.likedTrackIds.has(t.id));
-      } else {
-        playlistTracks = this.tracks;
-      }
-      if (playlistTracks.length === 0) return;
+        let playlistTracks = [];
+        if (currentTitle === "Your Uploads") {
+          playlistTracks = this.getUserUploads();
+        } else if (currentTitle === "Liked Songs") {
+          playlistTracks = this.tracks.filter(t => this.likedTrackIds.has(t.id));
+        } else {
+          const currentPl = this.getPlaylistByIdOrName(this.currentPlaylistId || currentTitle);
+          if (currentPl) {
+            const targetIds = Array.isArray(currentPl.trackIds) ? currentPl.trackIds : [];
+            playlistTracks = targetIds.map(id => this.tracks.find(t => t.id === id)).filter(Boolean);
+          } else {
+            playlistTracks = this.tracks;
+          }
+        }
+        if (playlistTracks.length === 0) {
+          this.showToast("No tracks to play in this playlist");
+          return;
+        }
 
-      const current = this.getCurrentTrack();
-      const isCurrentInPlaylist = current && playlistTracks.some(t => t.id === current.id);
-      if (isCurrentInPlaylist) {
-        this.togglePlayPause();
-      } else {
-        this.queue = [...playlistTracks];
-        this.playTrackById(playlistTracks[0].id);
-      }
-    });
+        const current = this.getCurrentTrack();
+        const isCurrentInPlaylist = current && playlistTracks.some(t => t.id === current.id);
+        if (isCurrentInPlaylist) {
+          this.togglePlayPause();
+        } else {
+          this.queue = [...playlistTracks];
+          this.playTrackById(playlistTracks[0].id);
+        }
+      });
+    }
+
+    if (this.dom.btnDeletePlaylist) {
+      this.dom.btnDeletePlaylist.addEventListener("click", () => {
+        if (this.currentPlaylistId && this.currentPlaylistId !== "liked" && this.currentPlaylistId !== "uploads") {
+          this.deletePlaylist(this.currentPlaylistId);
+        }
+      });
+    }
+
+    if (this.dom.btnPlaylistAddTracks) {
+      this.dom.btnPlaylistAddTracks.addEventListener("click", () => {
+        this.switchView("home");
+        if (this.dom.tracksTableBody) {
+          this.dom.tracksTableBody.scrollIntoView({ behavior: "smooth", block: "start" });
+        }
+        this.showToast("Click ➕ on any track to add it to your playlist!");
+      });
     }
 
     // Vibe Flow Toggle
@@ -1808,25 +2086,96 @@ class UsikSpotifyApp {
     });
 
     // Playlist Modal
-    this.dom.btnAddPlaylist.addEventListener("click", () => {
-      this.dom.playlistModal.classList.add("open");
-      this.dom.playlistInput.focus();
-    });
-    this.dom.btnCancelPlaylist.addEventListener("click", () => {
-      this.dom.playlistModal.classList.remove("open");
-    });
-    this.dom.btnSavePlaylist.addEventListener("click", () => {
-      const name = this.dom.playlistInput.value.trim();
-      if (name) {
-        this.customPlaylists.push(name);
-        localStorage.setItem("usik_playlists", JSON.stringify(this.customPlaylists));
-        this.renderLibraryList();
-        this.dom.playlistInput.value = "";
+    if (this.dom.btnAddPlaylist) {
+      this.dom.btnAddPlaylist.addEventListener("click", () => {
+        this.dom.playlistModal.classList.add("open");
+        if (this.dom.playlistInput) {
+          this.dom.playlistInput.value = "";
+          this.dom.playlistInput.focus();
+        }
+      });
+    }
+
+    if (this.dom.btnCancelPlaylist) {
+      this.dom.btnCancelPlaylist.addEventListener("click", () => {
         this.dom.playlistModal.classList.remove("open");
-        this.showToast(`Created playlist: ${name}`);
-        this.saveCurrentUserData();
+      });
+    }
+
+    if (this.dom.playlistModal) {
+      this.dom.playlistModal.addEventListener("click", (e) => {
+        if (e.target === this.dom.playlistModal) {
+          this.dom.playlistModal.classList.remove("open");
+        }
+      });
+    }
+
+    const saveNewPlaylist = () => {
+      const name = this.dom.playlistInput ? this.dom.playlistInput.value.trim() : "";
+      if (!name) return;
+
+      const newPl = {
+        id: `pl-${Date.now()}`,
+        name: name,
+        trackIds: this.pendingAddToPlaylistTrackId ? [this.pendingAddToPlaylistTrackId] : []
+      };
+
+      this.customPlaylists = (this.customPlaylists || []).map(p => this.normalizePlaylist(p)).filter(Boolean);
+      this.customPlaylists.push(newPl);
+      this.savePlaylists();
+      this.renderLibraryList();
+
+      if (this.dom.playlistInput) this.dom.playlistInput.value = "";
+      if (this.dom.playlistModal) this.dom.playlistModal.classList.remove("open");
+
+      this.showToast(`✨ Created playlist "${name}"`);
+      this.openLibraryView(newPl.name, newPl.id);
+
+      if (this.pendingAddToPlaylistTrackId) {
+        this.closeAddToPlaylistModal();
       }
-    });
+    };
+
+    if (this.dom.btnSavePlaylist) {
+      this.dom.btnSavePlaylist.addEventListener("click", saveNewPlaylist);
+    }
+
+    if (this.dom.playlistInput) {
+      this.dom.playlistInput.addEventListener("keydown", (e) => {
+        if (e.key === "Enter") {
+          e.preventDefault();
+          saveNewPlaylist();
+        }
+      });
+    }
+
+    // Add To Playlist Modal
+    if (this.dom.btnCloseAddToPlaylistModal) {
+      this.dom.btnCloseAddToPlaylistModal.addEventListener("click", () => this.closeAddToPlaylistModal());
+    }
+
+    if (this.dom.btnDoneAddToPlaylist) {
+      this.dom.btnDoneAddToPlaylist.addEventListener("click", () => this.closeAddToPlaylistModal());
+    }
+
+    if (this.dom.addToPlaylistModal) {
+      this.dom.addToPlaylistModal.addEventListener("click", (e) => {
+        if (e.target === this.dom.addToPlaylistModal) {
+          this.closeAddToPlaylistModal();
+        }
+      });
+    }
+
+    if (this.dom.btnCreateNewPlFromPicker) {
+      this.dom.btnCreateNewPlFromPicker.addEventListener("click", () => {
+        const preserveSongId = this.pendingAddToPlaylistTrackId;
+        this.closeAddToPlaylistModal();
+        this.pendingAddToPlaylistTrackId = preserveSongId;
+        if (this.dom.btnAddPlaylist) {
+          this.dom.btnAddPlaylist.click();
+        }
+      });
+    }
   }
 
   /* ==========================================================================
