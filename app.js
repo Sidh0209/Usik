@@ -1236,11 +1236,22 @@ CREATE TABLE IF NOT EXISTS public.songs (
     genre TEXT DEFAULT 'Custom',
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
+ALTER TABLE public.songs ADD COLUMN IF NOT EXISTS uploader_name TEXT DEFAULT 'Community';
 CREATE INDEX IF NOT EXISTS idx_songs_user_id ON public.songs(user_id);
 CREATE INDEX IF NOT EXISTS idx_songs_created_at ON public.songs(created_at DESC);
 ALTER TABLE public.songs ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Anyone can view all songs" ON public.songs;
+DROP POLICY IF EXISTS "Users can view their own songs" ON public.songs;
+DROP POLICY IF EXISTS "Users can manage their own songs" ON public.songs;
+DROP POLICY IF EXISTS "Users can insert their own songs" ON public.songs;
+DROP POLICY IF EXISTS "Users can insert songs" ON public.songs;
+DROP POLICY IF EXISTS "Users can update their own songs" ON public.songs;
+DROP POLICY IF EXISTS "Users can delete their own songs" ON public.songs;
+
 CREATE POLICY "Anyone can view all songs" ON public.songs FOR SELECT USING (true);
 CREATE POLICY "Users can insert songs" ON public.songs FOR INSERT WITH CHECK (auth.uid() = user_id OR user_id IS NULL);
+CREATE POLICY "Users can update their own songs" ON public.songs FOR UPDATE USING (auth.uid() = user_id);
 CREATE POLICY "Users can delete their own songs" ON public.songs FOR DELETE USING (auth.uid() = user_id);
 
 CREATE TABLE IF NOT EXISTS public.user_library (
@@ -1252,7 +1263,18 @@ CREATE TABLE IF NOT EXISTS public.user_library (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 ALTER TABLE public.user_library ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "Users can manage their own library" ON public.user_library FOR ALL USING (auth.uid() = user_id);`;
+
+DROP POLICY IF EXISTS "Users can manage their own library" ON public.user_library;
+DROP POLICY IF EXISTS "Users can read their own library" ON public.user_library;
+DROP POLICY IF EXISTS "Users can insert their own library" ON public.user_library;
+DROP POLICY IF EXISTS "Users can update their own library" ON public.user_library;
+DROP POLICY IF EXISTS "Users can delete their own library" ON public.user_library;
+
+CREATE POLICY "Users can manage their own library" ON public.user_library FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+
+GRANT SELECT ON public.songs TO anon, authenticated;
+GRANT INSERT, UPDATE, DELETE ON public.songs TO authenticated;
+GRANT ALL ON public.user_library TO authenticated;`;
         try {
           await navigator.clipboard.writeText(sql);
           this.showToast("Copied full SQL Schema to clipboard!");
