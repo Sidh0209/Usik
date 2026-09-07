@@ -1274,7 +1274,20 @@ DROP POLICY IF EXISTS "Users can delete their own library" ON public.user_librar
 CREATE POLICY "Users can manage their own library" ON public.user_library FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
 
 GRANT ALL ON public.songs TO anon, authenticated;
-GRANT ALL ON public.user_library TO anon, authenticated;`;
+GRANT ALL ON public.user_library TO anon, authenticated;
+
+DO $$
+BEGIN
+  BEGIN
+    ALTER PUBLICATION supabase_realtime ADD TABLE public.songs;
+  EXCEPTION WHEN duplicate_object THEN NULL;
+  END;
+
+  BEGIN
+    ALTER PUBLICATION supabase_realtime ADD TABLE public.user_library;
+  EXCEPTION WHEN duplicate_object THEN NULL;
+  END;
+END $$;`;
         try {
           await navigator.clipboard.writeText(sql);
           this.showToast("Copied full SQL Schema to clipboard!");

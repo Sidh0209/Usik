@@ -91,8 +91,13 @@ GRANT ALL ON public.user_library TO anon, authenticated;
 -- 4. Enable Realtime updates (Multi-device instant synchronization)
 DO $$
 BEGIN
-  IF EXISTS (SELECT 1 FROM pg_publication WHERE pubname = 'supabase_realtime') THEN
+  BEGIN
     ALTER PUBLICATION supabase_realtime ADD TABLE public.songs;
+  EXCEPTION WHEN duplicate_object THEN NULL;
+  END;
+
+  BEGIN
     ALTER PUBLICATION supabase_realtime ADD TABLE public.user_library;
-  END IF;
+  EXCEPTION WHEN duplicate_object THEN NULL;
+  END;
 END $$;
