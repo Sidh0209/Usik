@@ -1094,7 +1094,7 @@ body {
 
 .table-header-row {
   display: grid;
-  grid-template-columns: 36px 4fr 3fr 2fr 70px;
+  grid-template-columns: 36px 4fr 3fr 2fr 86px;
   padding: 8px 16px;
   border-bottom: 1px solid rgba(255, 255, 255, 0.1);
   color: var(--text-muted);
@@ -1107,7 +1107,7 @@ body {
 
 .table-row {
   display: grid;
-  grid-template-columns: 36px 4fr 3fr 2fr 70px;
+  grid-template-columns: 36px 4fr 3fr 2fr 86px;
   padding: 8px 16px;
   border-radius: 6px;
   align-items: center;
@@ -1259,6 +1259,34 @@ body {
   35% { transform: scale(1.4) rotate(-10deg); }
   70% { transform: scale(0.9) rotate(5deg); }
   100% { transform: scale(1) rotate(0deg); }
+}
+
+.row-delete-icon {
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  opacity: 0;
+  font-size: 0.8rem;
+  padding: 3px 5px;
+  border-radius: 4px;
+  line-height: 1;
+  transition: opacity var(--trans-fast), transform var(--trans-spring), color var(--trans-fast), background var(--trans-fast);
+}
+
+.table-row:hover .row-delete-icon {
+  opacity: 0.7;
+}
+
+.row-delete-icon:hover {
+  opacity: 1;
+  color: #ff5c5c;
+  background: rgba(255, 92, 92, 0.15);
+  transform: scale(1.18);
+}
+
+.row-delete-icon:active {
+  transform: scale(0.9);
 }
 
 /* ==========================================================================

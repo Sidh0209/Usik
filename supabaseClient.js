@@ -216,3 +216,121 @@ export async function syncUserLibrary(userId = "guest", data) {
   }
 }
 
+// ==============================================================================
+// DEDICATED RELATIONAL SONGS TABLE OPERATIONS (public.songs)
+// ==============================================================================
+
+/**
+ * Inserts a single song into the public.songs table in Supabase.
+ * Returns the created row object (including the generated UUID id) or null if guest/offline.
+ */
+export async function saveSongToSupabase(songData, userId) {
+  if (!isSupabaseConfigured() || !supabase || !userId || userId === "guest") {
+    return null;
+  }
+
+  try {
+    const payload = {
+      user_id: userId,
+      title: songData.title || "Untitled Track",
+      artist: songData.artist || "Unknown Artist",
+      url: songData.audioUrl || songData.url || "",
+      embed_url: songData.embedUrl || null,
+      cover_url: songData.coverUrl || songData.cover || null,
+      provider: songData.type || songData.provider || "youtube",
+      duration: songData.duration || 180,
+      genre: songData.genre || "Custom"
+    };
+
+    const { data, error } = await supabase
+      .from("songs")
+      .insert([payload])
+      .select()
+      .single();
+
+    if (error) {
+      console.warn("Supabase songs insert notice (check if schema.sql was run):", error.message);
+      return null;
+    }
+
+    console.log("⚡ Song successfully saved to Supabase 'songs' table:", data.id);
+    return data;
+  } catch (err) {
+    console.warn("Supabase saveSongToSupabase error:", err);
+    return null;
+  }
+}
+
+/**
+ * Fetches all songs created by the user from public.songs, ordered by creation date descending.
+ * Returns formatted track objects matching Usik application data structure.
+ */
+export async function fetchUserSongs(userId) {
+  if (!isSupabaseConfigured() || !supabase || !userId || userId === "guest") {
+    return [];
+  }
+
+  try {
+    const { data, error } = await supabase
+      .from("songs")
+      .select("*")
+      .eq("user_id", userId)
+      .order("created_at", { ascending: false });
+
+    if (error) {
+      console.warn("Supabase songs fetch notice:", error.message);
+      return [];
+    }
+
+    if (!Array.isArray(data)) return [];
+
+    return data.map((row) => ({
+      id: row.id,
+      title: row.title,
+      artist: row.artist,
+      album: row.provider === "youtube" ? "YouTube Stream" : "Audio Stream",
+      genre: row.genre || "Imported",
+      duration: row.duration || 180,
+      audioUrl: row.url,
+      embedUrl: row.embed_url,
+      coverUrl: row.cover_url,
+      color: "#a855f7",
+      secondaryColor: "#c084fc",
+      type: row.provider || "youtube",
+      videoId: (row.url && row.url.match(/(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|watch\?v=|watch\?.+&v=))([\w-]{11})/)) ? RegExp.$1 : null,
+      isCustom: true,
+      createdAt: row.created_at
+    }));
+  } catch (err) {
+    console.warn("Supabase fetchUserSongs error:", err);
+    return [];
+  }
+}
+
+/**
+ * Deletes a song from public.songs by UUID and user_id.
+ */
+export async function deleteSongFromSupabase(songId, userId) {
+  if (!isSupabaseConfigured() || !supabase || !userId || userId === "guest") {
+    return false;
+  }
+
+  try {
+    const { error } = await supabase
+      .from("songs")
+      .delete()
+      .eq("id", songId)
+      .eq("user_id", userId);
+
+    if (error) {
+      console.warn("Supabase deleteSongFromSupabase notice:", error.message);
+      return false;
+    }
+    console.log("⚡ Song successfully deleted from Supabase 'songs' table:", songId);
+    return true;
+  } catch (err) {
+    console.warn("Supabase deleteSongFromSupabase error:", err);
+    return false;
+  }
+}
+

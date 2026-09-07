@@ -11,6 +11,9 @@ import {
   onAuthStateChange,
   fetchUserLibrary,
   syncUserLibrary,
+  saveSongToSupabase,
+  fetchUserSongs,
+  deleteSongFromSupabase,
   DEFAULT_LIBRARY
 } from "./supabaseClient.js";
 import { detectMediaUrl, parseMediaMetadata } from "./mediaParser.js";
@@ -445,6 +448,7 @@ class UsikSpotifyApp {
         <div class="col-album">${track.album}</div>
         <div class="col-genre">${track.genre}</div>
         <div class="col-duration-flex">
+          ${track.isCustom ? `<button class="row-delete-icon" data-delete-id="${track.id}" title="Remove song">✕</button>` : ""}
           <button class="row-like-icon ${isLiked ? "liked" : ""}" data-like-id="${track.id}">
             ${isLiked ? "♥" : "♡"}
           </button>
@@ -453,7 +457,7 @@ class UsikSpotifyApp {
       `;
 
       row.addEventListener("click", (e) => {
-        if (e.target.closest(".row-like-icon")) return;
+        if (e.target.closest(".row-like-icon") || e.target.closest(".row-delete-icon")) return;
         this.playTrackById(track.id);
       });
 
@@ -462,6 +466,16 @@ class UsikSpotifyApp {
         likeBtn.addEventListener("click", (e) => {
           e.stopPropagation();
           this.toggleLike(track.id);
+        });
+      }
+
+      const deleteBtn = row.querySelector(`[data-delete-id="${track.id}"]`);
+      if (deleteBtn) {
+        deleteBtn.addEventListener("click", async (e) => {
+          e.stopPropagation();
+          if (confirm(`Remove "${track.title}" from your library?`)) {
+            await this.removeCustomTrack(track.id);
+          }
         });
       }
 
@@ -524,6 +538,7 @@ class UsikSpotifyApp {
         <div class="col-album">${track.album}</div>
         <div class="col-genre">${track.genre}</div>
         <div class="col-duration-flex">
+          ${track.isCustom ? `<button class="row-delete-icon" data-delete-id="${track.id}" title="Remove song">✕</button>` : ""}
           <button class="row-like-icon ${isLiked ? "liked" : ""}" data-like-id="${track.id}">
             ${isLiked ? "♥" : "♡"}
           </button>
@@ -531,7 +546,7 @@ class UsikSpotifyApp {
         </div>
       `;
       row.addEventListener("click", (e) => {
-        if (e.target.closest(".row-like-icon")) return;
+        if (e.target.closest(".row-like-icon") || e.target.closest(".row-delete-icon")) return;
         this.playTrackById(track.id);
       });
       const likeBtn = row.querySelector(`[data-like-id="${track.id}"]`);
@@ -540,6 +555,15 @@ class UsikSpotifyApp {
           e.stopPropagation();
           this.toggleLike(track.id);
           this.openLibraryView(title);
+        });
+      }
+      const deleteBtn = row.querySelector(`[data-delete-id="${track.id}"]`);
+      if (deleteBtn) {
+        deleteBtn.addEventListener("click", async (e) => {
+          e.stopPropagation();
+          if (confirm(`Remove "${track.title}" from your library?`)) {
+            await this.removeCustomTrack(track.id);
+          }
         });
       }
       this.dom.libraryTableBody.appendChild(row);
@@ -1035,10 +1059,28 @@ class UsikSpotifyApp {
     if (this.dom.btnCopySqlSchema) {
       this.dom.btnCopySqlSchema.addEventListener("click", async () => {
         const sql = `-- Usik Database Schema for Supabase
+CREATE TABLE IF NOT EXISTS public.songs (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
+    title TEXT NOT NULL,
+    artist TEXT NOT NULL,
+    url TEXT NOT NULL,
+    embed_url TEXT,
+    cover_url TEXT,
+    provider TEXT NOT NULL DEFAULT 'youtube',
+    duration INTEGER DEFAULT 180,
+    genre TEXT DEFAULT 'Custom',
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_songs_user_id ON public.songs(user_id);
+ALTER TABLE public.songs ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Users can manage their own songs" ON public.songs FOR ALL USING (auth.uid() = user_id);
+
 CREATE TABLE IF NOT EXISTS public.user_library (
     user_id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
     liked_tracks JSONB DEFAULT '[]'::jsonb,
     playlists JSONB DEFAULT '[]'::jsonb,
+    custom_tracks JSONB DEFAULT '[]'::jsonb,
     settings JSONB DEFAULT '{"volume": 0.85, "currentEnv": "cosmic", "isShuffle": false, "repeatMode": "off"}'::jsonb,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
@@ -1046,7 +1088,7 @@ ALTER TABLE public.user_library ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Users can manage their own library" ON public.user_library FOR ALL USING (auth.uid() = user_id);`;
         try {
           await navigator.clipboard.writeText(sql);
-          this.showToast("Copied SQL Schema to clipboard!");
+          this.showToast("Copied full SQL Schema to clipboard!");
         } catch {
           this.showToast("Schema is in schema.sql file");
         }
@@ -1115,6 +1157,15 @@ CREATE POLICY "Users can manage their own library" ON public.user_library FOR AL
   async loadUserData(userId = "guest") {
     try {
       const data = await fetchUserLibrary(userId);
+      let remoteSongs = [];
+      if (userId && userId !== "guest") {
+        try {
+          remoteSongs = await fetchUserSongs(userId);
+        } catch (e) {
+          console.warn("Notice: could not query Supabase 'songs' table:", e);
+        }
+      }
+
       if (data) {
         if (Array.isArray(data.likedTracks)) {
           this.likedTrackIds = new Set(data.likedTracks);
@@ -1122,10 +1173,25 @@ CREATE POLICY "Users can manage their own library" ON public.user_library FOR AL
         if (Array.isArray(data.playlists)) {
           this.customPlaylists = [...data.playlists];
         }
-        if (Array.isArray(data.customTracks)) {
-          this.customTracks = data.customTracks;
+
+        const localCustom = Array.isArray(data.customTracks) ? data.customTracks : [];
+        if (remoteSongs && remoteSongs.length > 0) {
+          // Merge deduplicating by ID or audioUrl
+          const seen = new Set();
+          const combined = [];
+          for (const s of remoteSongs) {
+            seen.add(s.id);
+            if (s.audioUrl) seen.add(s.audioUrl);
+            combined.push(s);
+          }
+          for (const s of localCustom) {
+            if (!seen.has(s.id) && (!s.audioUrl || !seen.has(s.audioUrl))) {
+              combined.push(s);
+            }
+          }
+          this.customTracks = combined;
         } else {
-          this.customTracks = [];
+          this.customTracks = localCustom;
         }
 
         // Merge custom tracks with default curated catalog
@@ -1161,6 +1227,39 @@ CREATE POLICY "Users can manage their own library" ON public.user_library FOR AL
     } catch (err) {
       console.warn("Error loading user library:", err);
     }
+  }
+
+  async removeCustomTrack(trackId) {
+    if (this.currentUser && this.currentUser.id && this.currentUser.id !== "guest") {
+      try {
+        await deleteSongFromSupabase(trackId, this.currentUser.id);
+      } catch (err) {
+        console.warn("Could not delete from Supabase songs table:", err);
+      }
+    }
+
+    this.customTracks = this.customTracks.filter(t => t.id !== trackId);
+    this.tracks = this.tracks.filter(t => t.id !== trackId);
+    this.queue = this.queue.filter(t => t.id !== trackId);
+    this.likedTrackIds.delete(trackId);
+
+    const current = this.getCurrentTrack();
+    if (current && current.id === trackId) {
+      if (this.queue.length > 0) {
+        this.playTrackById(this.queue[0].id);
+      } else {
+        this.audioEngine.pause();
+      }
+    }
+
+    this.saveCurrentUserData();
+    this.renderTracksTable();
+    this.renderFeaturedCarousel();
+    this.renderRecentsGrid();
+    if (this.currentView === "library") {
+      this.openLibraryView(this.dom.playlistHeroName.textContent || "Liked Songs");
+    }
+    this.showToast("Track removed from library.");
   }
 
   initImportModal() {
@@ -1248,14 +1347,16 @@ CREATE POLICY "Users can manage their own library" ON public.user_library FOR AL
     });
 
     // Save Track to Library
-    this.dom.btnSubmitImport.addEventListener("click", () => {
+    this.dom.btnSubmitImport.addEventListener("click", async () => {
       if (!this.currentParsedTrack) return;
 
       const title = this.dom.importEditTitle.value.trim() || this.currentParsedTrack.title || "Untitled Track";
       const artist = this.dom.importEditArtist.value.trim() || this.currentParsedTrack.artist || "Unknown Artist";
 
+      let trackId = "custom-" + Date.now();
+
       const newTrack = {
-        id: "custom-" + Date.now(),
+        id: trackId,
         title: title,
         artist: artist,
         album: this.currentParsedTrack.provider || "Web Stream",
@@ -1271,6 +1372,23 @@ CREATE POLICY "Users can manage their own library" ON public.user_library FOR AL
         isCustom: true
       };
 
+      // Direct insertion to dedicated Supabase 'songs' table
+      if (this.currentUser && this.currentUser.id && this.currentUser.id !== "guest") {
+        this.dom.btnSubmitImport.disabled = true;
+        this.dom.btnSubmitImport.textContent = "Saving to Supabase...";
+        try {
+          const savedRow = await saveSongToSupabase(newTrack, this.currentUser.id);
+          if (savedRow && savedRow.id) {
+            newTrack.id = savedRow.id;
+          }
+        } catch (e) {
+          console.warn("Could not persist to Supabase songs table:", e);
+        } finally {
+          this.dom.btnSubmitImport.disabled = false;
+          this.dom.btnSubmitImport.textContent = "Save to Library";
+        }
+      }
+
       this.customTracks.unshift(newTrack);
       this.tracks.unshift(newTrack);
       this.queue.unshift(newTrack);
@@ -1282,7 +1400,7 @@ CREATE POLICY "Users can manage their own library" ON public.user_library FOR AL
       this.playTrackById(newTrack.id);
 
       closeModal();
-      this.showToast(`Added "${newTrack.title}" to Library!`);
+      this.showToast(`Added "${newTrack.title}" to Library & Supabase!`);
     });
   }
 
