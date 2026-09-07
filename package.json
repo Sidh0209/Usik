@@ -1,7 +1,7 @@
 {
-  "name": "usik-spatial-music",
+  "name": "usik",
   "version": "1.0.0",
-  "description": "Usik - Spatial UI Music Streaming Experience",
+  "description": "Usik - Spotify-Inspired Music Streaming Web App",
   "type": "module",
   "scripts": {
     "dev": "vite",
