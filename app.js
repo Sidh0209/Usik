@@ -225,6 +225,7 @@ class UsikSpotifyApp {
       pillImportLib: document.getElementById("pill-import-lib"),
       addTrackModal: document.getElementById("add-track-modal"),
       btnCloseImportModal: document.getElementById("btn-close-import-modal"),
+      btnCloseImport: document.getElementById("btn-close-import-modal"),
       btnCancelImport: document.getElementById("btn-cancel-import"),
       btnSubmitImport: document.getElementById("btn-submit-import"),
       inputMediaUrl: document.getElementById("input-media-url"),
@@ -1562,10 +1563,10 @@ class UsikSpotifyApp {
 
   bindEvents() {
     // Nav events
-    this.dom.navBrand.addEventListener("click", () => this.switchView("home"));
-    this.dom.btnNavHome.addEventListener("click", () => this.switchView("home"));
-    this.dom.btnNavSearch.addEventListener("click", () => this.switchView("search"));
-    this.dom.libItemLiked.addEventListener("click", () => this.openLibraryView("Liked Songs"));
+    if (this.dom.navBrand) this.dom.navBrand.addEventListener("click", () => this.switchView("home"));
+    if (this.dom.btnNavHome) this.dom.btnNavHome.addEventListener("click", () => this.switchView("home"));
+    if (this.dom.btnNavSearch) this.dom.btnNavSearch.addEventListener("click", () => this.switchView("search"));
+    if (this.dom.libItemLiked) this.dom.libItemLiked.addEventListener("click", () => this.openLibraryView("Liked Songs"));
 
     if (this.dom.libItemUploads) {
       this.dom.libItemUploads.addEventListener("click", () => this.openLibraryView("Your Uploads"));
@@ -1592,52 +1593,61 @@ class UsikSpotifyApp {
       });
     }
 
-    if (this.dom.pillImportLib) {
+    if (this.dom.pillImportLib && this.dom.btnOpenImport) {
       this.dom.pillImportLib.addEventListener("click", () => {
         this.dom.btnOpenImport.click();
       });
     }
 
-    if (this.dom.btnQuickImportMyShelf) {
+    if (this.dom.btnQuickImportMyShelf && this.dom.btnOpenImport) {
       this.dom.btnQuickImportMyShelf.addEventListener("click", () => {
         this.dom.btnOpenImport.click();
       });
     }
 
-    // History arrows
-    this.dom.btnBack.addEventListener("click", () => this.switchView("home"));
-    this.dom.btnForward.addEventListener("click", () => this.switchView("search"));
+    // History arrows (Undo/Redo navigation)
+    if (this.dom.btnBack) this.dom.btnBack.addEventListener("click", () => this.switchView("home"));
+    if (this.dom.btnForward) this.dom.btnForward.addEventListener("click", () => this.switchView("search"));
 
     // Search
-    this.dom.searchInput.addEventListener("input", (e) => {
-      this.searchQuery = e.target.value;
-      this.renderTracksTable();
-    });
+    if (this.dom.searchInput) {
+      this.dom.searchInput.addEventListener("input", (e) => {
+        this.searchQuery = e.target.value;
+        this.renderTracksTable();
+      });
+    }
 
     // Theme Menu
-    this.dom.btnEnvMenu.addEventListener("click", (e) => {
-      e.stopPropagation();
-      this.dom.envPopupMenu.classList.toggle("open");
-    });
+    if (this.dom.btnEnvMenu) {
+      this.dom.btnEnvMenu.addEventListener("click", (e) => {
+        e.stopPropagation();
+        if (this.dom.envPopupMenu) this.dom.envPopupMenu.classList.toggle("open");
+      });
+    }
     window.addEventListener("click", () => {
-      this.dom.envPopupMenu.classList.remove("open");
+      if (this.dom.envPopupMenu) this.dom.envPopupMenu.classList.remove("open");
     });
 
     // Player Controls
-    this.dom.btnPlayPause.addEventListener("click", () => {
-      this.togglePlayPause();
-    });
+    if (this.dom.btnPlayPause) {
+      this.dom.btnPlayPause.addEventListener("click", () => {
+        this.togglePlayPause();
+      });
+    }
 
-    this.dom.btnNext.addEventListener("click", () => this.playNextTrack());
-    this.dom.btnPrev.addEventListener("click", () => this.playPrevTrack());
+    if (this.dom.btnNext) this.dom.btnNext.addEventListener("click", () => this.playNextTrack());
+    if (this.dom.btnPrev) this.dom.btnPrev.addEventListener("click", () => this.playPrevTrack());
 
-    this.dom.playerLikeBtn.addEventListener("click", () => {
-      const track = this.getCurrentTrack();
-      if (track) this.toggleLike(track.id);
-    });
+    if (this.dom.playerLikeBtn) {
+      this.dom.playerLikeBtn.addEventListener("click", () => {
+        const track = this.getCurrentTrack();
+        if (track) this.toggleLike(track.id);
+      });
+    }
 
-    this.dom.btnPlaylistPlay.addEventListener("click", () => {
-      const currentTitle = this.dom.playlistHeroName.textContent || "Liked Songs";
+    if (this.dom.btnPlaylistPlay) {
+      this.dom.btnPlaylistPlay.addEventListener("click", () => {
+        const currentTitle = this.dom.playlistHeroName.textContent || "Liked Songs";
       let playlistTracks = [];
       if (currentTitle === "Your Uploads") {
         playlistTracks = this.getUserUploads();
@@ -1657,6 +1667,7 @@ class UsikSpotifyApp {
         this.playTrackById(playlistTracks[0].id);
       }
     });
+    }
 
     // Vibe Flow Toggle
     if (this.dom.btnVibeFlow) {
@@ -2210,11 +2221,20 @@ END $$;`;
     if (this.dom.btnOpenImport) {
       this.dom.btnOpenImport.addEventListener("click", openModal);
     }
-    this.dom.btnCloseImport.addEventListener("click", closeModal);
-    this.dom.btnCancelImport.addEventListener("click", closeModal);
-    this.dom.addTrackModal.addEventListener("click", (e) => {
-      if (e.target === this.dom.addTrackModal) closeModal();
-    });
+    if (this.dom.btnCloseImport) {
+      this.dom.btnCloseImport.addEventListener("click", closeModal);
+    }
+    if (this.dom.btnCloseImportModal) {
+      this.dom.btnCloseImportModal.addEventListener("click", closeModal);
+    }
+    if (this.dom.btnCancelImport) {
+      this.dom.btnCancelImport.addEventListener("click", closeModal);
+    }
+    if (this.dom.addTrackModal) {
+      this.dom.addTrackModal.addEventListener("click", (e) => {
+        if (e.target === this.dom.addTrackModal) closeModal();
+      });
+    }
 
     // Handle typing / pasting URL
     let parseDebounce = null;
