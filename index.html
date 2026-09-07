@@ -1,0 +1,434 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Usik - Music Player</title>
+  <meta name="description" content="Usik - Spotify-inspired music streaming web app with macOS smooth animations, purple aesthetic, and curated music catalog." />
+  <link rel="stylesheet" href="./style.css" />
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23a855f7'><circle cx='12' cy='12' r='10'/><polygon points='10,8 16,12 10,16' fill='%23ffffff'/></svg>" />
+</head>
+<body class="env-cosmic">
+
+  <!-- Main Spotify-Style Desktop Grid Shell -->
+  <div class="spotify-shell">
+
+    <!-- ================= LEFT SIDEBAR ================= -->
+    <aside class="sidebar-container">
+      
+      <!-- Logo & Primary Navigation -->
+      <div class="sidebar-panel">
+        <div class="brand-header" id="nav-brand">
+          <div class="brand-logo-circle">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+              <circle cx="12" cy="12" r="10"></circle>
+              <polygon points="10 8 16 12 10 16" fill="currentColor"></polygon>
+            </svg>
+          </div>
+          <span class="brand-name">Usik</span>
+        </div>
+
+        <nav class="sidebar-nav">
+          <button class="nav-item active" data-view="home" id="btn-nav-home">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="M12.5 3.247a1 1 0 0 0-1 0L4 7.577V20h5v-6a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v6h5V7.577l-7.5-4.33z"/></svg>
+            <span>Home</span>
+          </button>
+          <button class="nav-item" data-view="search" id="btn-nav-search">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="7"></circle><line x1="16.5" y1="16.5" x2="21" y2="21"></line></svg>
+            <span>Search</span>
+          </button>
+        </nav>
+      </div>
+
+      <!-- Your Library Panel -->
+      <div class="sidebar-panel library-panel">
+        <div class="library-header">
+          <div class="lib-title-group">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="M3 22a1 1 0 0 1-1-1V3a1 1 0 0 1 2 0v18a1 1 0 0 1-1 1zM15.5 2.134A1 1 0 0 0 14 3v18a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V3a1 1 0 0 0-1.5-.866L15.5 2.134zM7 2a1 1 0 0 0-1 1v18a1 1 0 0 0 2 0V3a1 1 0 0 0-1-1z"/></svg>
+            <span>Your Library</span>
+          </div>
+          <button class="icon-round-btn" id="btn-add-playlist" title="Create playlist">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+          </button>
+        </div>
+
+        <div class="lib-chips-row">
+          <button class="lib-filter-pill active" id="pill-all-lib">Playlists</button>
+          <button class="lib-filter-pill" id="pill-liked-lib">Liked Songs</button>
+        </div>
+
+        <!-- Library Items List -->
+        <div class="library-items-list" id="library-list-container">
+          <!-- Liked Songs Quick Tile -->
+          <div class="lib-item-card active" id="lib-item-liked">
+            <div class="liked-songs-gradient-icon">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="#ffffff"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>
+            </div>
+            <div class="lib-meta">
+              <span class="lib-title">Liked Songs</span>
+              <span class="lib-sub" id="sidebar-liked-count">Playlist • 0 songs</span>
+            </div>
+          </div>
+
+          <!-- Dynamic Playlists -->
+          <div id="custom-playlists-container"></div>
+        </div>
+      </div>
+
+    </aside>
+
+    <!-- ================= MAIN CONTENT VIEW ================= -->
+    <main class="main-content-scroll" id="main-scroll-view">
+      
+      <!-- Top Sticky Nav Header -->
+      <header class="main-top-header" id="top-header">
+        <div class="header-left">
+          <div class="history-arrows">
+            <button class="arrow-btn" id="btn-back" title="Go back">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"></polyline></svg>
+            </button>
+            <button class="arrow-btn" id="btn-forward" title="Go forward">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"></polyline></svg>
+            </button>
+          </div>
+
+          <!-- Live Search Bar -->
+          <div class="header-search-bar" id="header-search-box">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="7"></circle><line x1="16.5" y1="16.5" x2="21" y2="21"></line></svg>
+            <input type="text" id="search-input" placeholder="What do you want to play?" autocomplete="off" />
+          </div>
+        </div>
+
+        <div class="header-right">
+          <!-- Atmosphere Switcher -->
+          <div class="env-dropdown-wrapper">
+            <button class="header-pill-btn" id="btn-env-menu">
+              <span>Theme</span>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"></polyline></svg>
+            </button>
+            <div class="env-popup-menu" id="env-popup-menu"></div>
+          </div>
+
+          <!-- Auth Header Group -->
+          <div class="header-auth-group" id="header-auth-group">
+            <!-- Logged Out View -->
+            <div class="auth-guest-btns" id="auth-guest-btns">
+              <button class="auth-text-btn" id="btn-open-register">Sign up</button>
+              <button class="auth-pill-btn" id="btn-open-login">Log in</button>
+            </div>
+
+            <!-- Logged In View -->
+            <div class="auth-user-dropdown-wrapper" id="auth-user-profile" style="display: none;">
+              <button class="user-avatar-btn" id="btn-user-avatar" title="Account profile">
+                <span class="avatar-initial" id="user-avatar-initial">U</span>
+              </button>
+              <div class="user-popup-menu" id="user-popup-menu">
+                <div class="user-popup-header">
+                  <span class="user-popup-name" id="user-profile-name">User</span>
+                  <span class="user-popup-email" id="user-profile-email">user@supabase.io</span>
+                </div>
+                <div class="user-menu-divider"></div>
+                <div class="user-menu-item" id="btn-open-supabase-settings">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+                  <span>Supabase API Config</span>
+                </div>
+                <div class="user-menu-divider"></div>
+                <div class="user-menu-item logout" id="btn-user-logout">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+                  <span>Log out</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      <!-- Dynamic Ambient Header Mesh -->
+      <div class="header-ambient-glow" id="header-ambient-glow"></div>
+
+      <!-- ================= VIEW CONTAINER ================= -->
+      <div class="view-body">
+
+        <!-- VIEW: HOME -->
+        <section class="tab-page active" id="page-home">
+          
+          <!-- Good evening / Recents Grid -->
+          <h2 class="section-heading" id="greeting-text">Good afternoon</h2>
+          <div class="recents-grid" id="recents-grid-container">
+            <!-- 6 Compact Spotify Recents Cards -->
+          </div>
+
+          <!-- Mood Filter Row -->
+          <div class="genre-pills-row" id="genre-pills-container"></div>
+
+          <!-- Section: Featured Tracks -->
+          <div class="content-section">
+            <div class="section-title-row">
+              <h3 class="section-title">Featured Tracks</h3>
+              <span class="see-all-link">Show all</span>
+            </div>
+            <div class="cards-carousel-grid" id="featured-carousel"></div>
+          </div>
+
+          <!-- Section: All Tracks (Spotify Table List) -->
+          <div class="content-section">
+            <div class="section-title-row">
+              <h3 class="section-title">All Tracks</h3>
+              <span class="track-count-badge" id="catalog-count-badge">8 songs</span>
+            </div>
+
+            <!-- Spotify-Style Tracks Table -->
+            <div class="spotify-tracks-table">
+              <div class="table-header-row">
+                <span class="col-num">#</span>
+                <span class="col-title">Title</span>
+                <span class="col-album">Album</span>
+                <span class="col-genre">Genre</span>
+                <span class="col-duration">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+                </span>
+              </div>
+              <div class="table-rows-container" id="tracks-table-body"></div>
+            </div>
+          </div>
+
+        </section>
+
+        <!-- VIEW: LIKED SONGS & PLAYLISTS -->
+        <section class="tab-page" id="page-library">
+          <div class="playlist-header-hero">
+            <div class="playlist-big-cover" id="playlist-hero-cover">
+              <svg width="64" height="64" viewBox="0 0 24 24" fill="#ffffff"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>
+            </div>
+            <div class="playlist-hero-meta">
+              <span class="playlist-type">PLAYLIST</span>
+              <h1 class="playlist-name" id="playlist-hero-name">Liked Songs</h1>
+              <div class="playlist-stats">
+                <span class="playlist-owner">Siddharth</span>
+                <span class="playlist-dot">•</span>
+                <span id="playlist-songs-count">0 songs</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Playlist Actions Bar -->
+          <div class="playlist-actions-bar">
+            <button class="spotify-big-play-btn" id="btn-playlist-play" title="Play Playlist">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="#000000"><polygon points="6 4 20 12 6 20 6 4"></polygon></svg>
+            </button>
+          </div>
+
+          <!-- Playlist Table -->
+          <div class="spotify-tracks-table">
+            <div class="table-header-row">
+              <span class="col-num">#</span>
+              <span class="col-title">Title</span>
+              <span class="col-album">Album</span>
+              <span class="col-genre">Genre</span>
+              <span class="col-duration">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+              </span>
+            </div>
+            <div class="table-rows-container" id="library-table-body"></div>
+          </div>
+        </section>
+
+      </div>
+    </main>
+
+  </div>
+
+  <!-- ================= BOTTOM SPOTIFY NOW PLAYING BAR ================= -->
+  <footer class="now-playing-bar">
+    
+    <!-- Left: Track Metadata -->
+    <div class="now-playing-left">
+      <img src="https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=300&q=80" alt="Current Track" class="now-playing-art" id="player-track-thumb" />
+      <div class="now-playing-titles">
+        <span class="now-playing-song" id="player-track-title">Quantum Horizon</span>
+        <span class="now-playing-artist" id="player-track-artist">Aether Void</span>
+      </div>
+      <button class="now-playing-like-btn" id="player-like-btn" title="Save to Your Library">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path></svg>
+      </button>
+    </div>
+
+    <!-- Center: Player Controls & Scrubber -->
+    <div class="now-playing-center">
+      <div class="player-controls-row">
+        <button class="player-subtle-btn" id="btn-shuffle" title="Enable shuffle (S)">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 3 21 3 21 8"></polyline><line x1="4" y1="20" x2="21" y2="3"></line><polyline points="21 16 21 21 16 21"></polyline><line x1="15" y1="15" x2="21" y2="21"></line><line x1="4" y1="4" x2="9" y2="9"></line></svg>
+        </button>
+        <button class="player-subtle-btn" id="btn-prev" title="Previous (Left Arrow)">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><polygon points="19 20 9 12 19 4 19 20"></polygon><line x1="5" y1="19" x2="5" y2="5" stroke="currentColor" stroke-width="2.5"></line></svg>
+        </button>
+        <button class="player-main-play-btn" id="btn-play-pause" title="Play (Space)">
+          <svg id="play-pause-icon" width="18" height="18" viewBox="0 0 24 24" fill="#000000"><polygon points="6 4 20 12 6 20 6 4"></polygon></svg>
+        </button>
+        <button class="player-subtle-btn" id="btn-next" title="Next (Right Arrow)">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 4 15 12 5 20 5 4"></polygon><line x1="19" y1="5" x2="19" y2="19" stroke="currentColor" stroke-width="2.5"></line></svg>
+        </button>
+        <button class="player-subtle-btn" id="btn-repeat" title="Enable repeat">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="17 1 21 5 17 9"></polyline><path d="M3 11V9a4 4 0 0 1 4-4h14"></path><polyline points="7 23 3 19 7 15"></polyline><path d="M21 13v2a4 4 0 0 1-4 4H3"></path></svg>
+        </button>
+      </div>
+
+      <!-- Scrubber Timeline -->
+      <div class="playback-bar-row">
+        <span class="playback-time" id="current-time">0:00</span>
+        <div class="progress-bar-slot" id="progress-bar-container">
+          <div class="progress-bar-fill" id="progress-fill">
+            <div class="progress-handle"></div>
+          </div>
+        </div>
+        <span class="playback-time" id="total-duration">3:02</span>
+      </div>
+    </div>
+
+    <!-- Right: Utility Controls -->
+    <div class="now-playing-right">
+      <!-- Lyrics Button -->
+      <button class="player-subtle-btn" id="btn-toggle-lyrics" title="Lyrics">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18V5l12-2v13"></path><circle cx="6" cy="18" r="3"></circle><circle cx="18" cy="16" r="3"></circle></svg>
+      </button>
+
+      <!-- Queue Button -->
+      <button class="player-subtle-btn" id="btn-toggle-queue" title="Queue">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="8" y1="6" x2="21" y2="6"></line><line x1="8" y1="12" x2="21" y2="12"></line><line x1="8" y1="18" x2="21" y2="18"></line><line x1="3" y1="6" x2="3.01" y2="6"></line><line x1="3" y1="12" x2="3.01" y2="12"></line><line x1="3" y1="18" x2="3.01" y2="18"></line></svg>
+      </button>
+
+      <!-- Volume Cluster -->
+      <div class="volume-slider-cluster">
+        <button class="player-subtle-btn" id="btn-volume-mute" title="Mute">
+          <svg id="volume-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><path d="M15.54 8.46a5 5 0 0 1 0 7.07"></path></svg>
+        </button>
+        <div class="vol-bar-track" id="vol-bar-track">
+          <div class="vol-bar-fill" id="vol-fill" style="width: 85%;"></div>
+        </div>
+      </div>
+    </div>
+
+  </footer>
+
+  <!-- ================= SLIDE-OUT DRAWERS ================= -->
+  <!-- Playing Queue Drawer -->
+  <aside class="side-drawer" id="queue-drawer">
+    <div class="drawer-top-bar">
+      <span class="drawer-heading">Queue</span>
+      <button class="drawer-close-btn" id="btn-close-queue">✕</button>
+    </div>
+    <div class="drawer-scrollable" id="queue-items-list"></div>
+  </aside>
+
+  <!-- Lyrics Drawer -->
+  <aside class="side-drawer" id="lyrics-drawer">
+    <div class="drawer-top-bar">
+      <span class="drawer-heading">Lyrics</span>
+      <button class="drawer-close-btn" id="btn-close-lyrics">✕</button>
+    </div>
+    <div class="drawer-scrollable" id="lyrics-lines-container"></div>
+  </aside>
+
+  <!-- Playlist Modal -->
+  <div class="modal-backdrop" id="playlist-modal">
+    <div class="modal-box">
+      <h3 class="modal-header">Create playlist</h3>
+      <input type="text" class="spotify-input" id="playlist-name-input" placeholder="My Playlist #1" />
+      <div class="modal-footer">
+        <button class="btn-text" id="btn-cancel-playlist">Cancel</button>
+        <button class="btn-spotify-green" id="btn-save-playlist">Create</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Authentication Modal (Supabase) -->
+  <div class="modal-backdrop" id="auth-modal">
+    <div class="modal-box auth-modal-box">
+      <div class="auth-modal-header-row">
+        <div class="auth-brand-badge">
+          <div class="brand-logo-circle small">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+          </div>
+          <span class="auth-brand-name">Usik</span>
+        </div>
+        <button class="drawer-close-btn" id="btn-close-auth-modal">✕</button>
+      </div>
+
+      <div class="auth-tabs-row">
+        <button class="auth-tab-btn active" id="tab-btn-login">Log In</button>
+        <button class="auth-tab-btn" id="tab-btn-register">Sign Up</button>
+      </div>
+
+      <!-- Error / Alert container -->
+      <div class="auth-alert" id="auth-alert" style="display: none;"></div>
+
+      <form class="auth-form" id="auth-form">
+        <!-- Name field for Sign Up -->
+        <div class="form-group" id="group-fullname" style="display: none;">
+          <label class="form-label" for="auth-fullname">Name</label>
+          <input type="text" class="spotify-input" id="auth-fullname" placeholder="What should we call you?" />
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="auth-email">Email address</label>
+          <input type="email" class="spotify-input" id="auth-email" placeholder="name@domain.com" required />
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="auth-password">Password</label>
+          <input type="password" class="spotify-input" id="auth-password" placeholder="••••••••" required minlength="6" />
+        </div>
+
+        <button type="submit" class="btn-auth-submit" id="btn-auth-submit">
+          <span id="auth-submit-text">Log In</span>
+          <div class="auth-spinner" id="auth-spinner" style="display: none;"></div>
+        </button>
+      </form>
+
+      <div class="auth-modal-footer">
+        <span class="auth-status-note" id="auth-backend-status">⚡ Supabase Ready</span>
+        <button class="auth-link-btn" id="btn-show-supabase-config">Configure API Keys</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Supabase Credentials Modal -->
+  <div class="modal-backdrop" id="supabase-config-modal">
+    <div class="modal-box">
+      <div class="auth-modal-header-row">
+        <h3 class="modal-header">Supabase Configuration</h3>
+        <button class="drawer-close-btn" id="btn-close-supabase-modal">✕</button>
+      </div>
+      <p class="modal-subtext">
+        Connect your own Supabase project. Keys are stored safely in local browser storage.
+      </p>
+
+      <div class="form-group">
+        <label class="form-label" for="input-supabase-url">Project URL</label>
+        <input type="url" class="spotify-input" id="input-supabase-url" placeholder="https://your-project.supabase.co" />
+      </div>
+
+      <div class="form-group">
+        <label class="form-label" for="input-supabase-key">Public Anon Key</label>
+        <input type="password" class="spotify-input" id="input-supabase-key" placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6..." />
+      </div>
+
+      <div class="modal-footer" style="justify-content: space-between;">
+        <button class="btn-text" id="btn-copy-sql-schema" style="color: var(--sp-purple-bright); padding-left: 0;">📋 Copy SQL Schema</button>
+        <div style="display: flex; gap: 8px;">
+          <button class="btn-text" id="btn-cancel-supabase-config">Cancel</button>
+          <button class="btn-spotify-green" id="btn-save-supabase-config">Save & Connect</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Notification -->
+  <div class="spotify-toast" id="app-toast">
+    <span id="toast-message">Added to your Library</span>
+  </div>
+
+  <!-- Application Logic -->
+  <script type="module" src="./app.js"></script>
+</body>
+</html>
