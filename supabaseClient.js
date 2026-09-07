@@ -224,7 +224,7 @@ export async function syncUserLibrary(userId = "guest", data) {
  * Inserts a single song into the public.songs table in Supabase.
  * Returns the created row object (including the generated UUID id) or null if guest/offline.
  */
-export async function saveSongToSupabase(songData, userId) {
+export async function saveSongToSupabase(songData, userId, uploaderName = "Community") {
   if (!isSupabaseConfigured() || !supabase || !userId || userId === "guest") {
     return null;
   }
@@ -232,6 +232,7 @@ export async function saveSongToSupabase(songData, userId) {
   try {
     const payload = {
       user_id: userId,
+      uploader_name: uploaderName || "Community",
       title: songData.title || "Untitled Track",
       artist: songData.artist || "Unknown Artist",
       url: songData.audioUrl || songData.url || "",
@@ -262,8 +263,56 @@ export async function saveSongToSupabase(songData, userId) {
 }
 
 /**
- * Fetches all songs created by the user from public.songs, ordered by creation date descending.
+ * Fetches all community songs across all users from public.songs for universal playback & feed discovery.
  * Returns formatted track objects matching Usik application data structure.
+ */
+export async function fetchAllPublicSongs(limit = 100) {
+  if (!isSupabaseConfigured() || !supabase) {
+    return [];
+  }
+
+  try {
+    const { data, error } = await supabase
+      .from("songs")
+      .select("*")
+      .order("created_at", { ascending: false })
+      .limit(limit);
+
+    if (error) {
+      console.warn("Supabase public songs fetch notice:", error.message);
+      return [];
+    }
+
+    if (!Array.isArray(data)) return [];
+
+    return data.map((row) => ({
+      id: row.id,
+      userId: row.user_id,
+      uploaderName: row.uploader_name || "Community",
+      title: row.title,
+      artist: row.artist,
+      album: row.provider === "youtube" ? "YouTube Stream" : "Audio Stream",
+      genre: row.genre || "Community Drop",
+      duration: row.duration || 180,
+      audioUrl: row.url,
+      embedUrl: row.embed_url,
+      coverUrl: row.cover_url || "https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?auto=format&fit=crop&w=600&q=80",
+      color: "#a855f7",
+      secondaryColor: "#c084fc",
+      type: row.provider || "youtube",
+      videoId: (row.url && row.url.match(/(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|watch\?v=|watch\?.+&v=))([\w-]{11})/)) ? RegExp.$1 : null,
+      isCustom: true,
+      isPublic: true,
+      createdAt: row.created_at
+    }));
+  } catch (err) {
+    console.warn("Supabase fetchAllPublicSongs error:", err);
+    return [];
+  }
+}
+
+/**
+ * Fetches songs created by a specific user from public.songs, ordered by creation date descending.
  */
 export async function fetchUserSongs(userId) {
   if (!isSupabaseConfigured() || !supabase || !userId || userId === "guest") {
@@ -286,6 +335,8 @@ export async function fetchUserSongs(userId) {
 
     return data.map((row) => ({
       id: row.id,
+      userId: row.user_id,
+      uploaderName: row.uploader_name || "You",
       title: row.title,
       artist: row.artist,
       album: row.provider === "youtube" ? "YouTube Stream" : "Audio Stream",
@@ -293,7 +344,7 @@ export async function fetchUserSongs(userId) {
       duration: row.duration || 180,
       audioUrl: row.url,
       embedUrl: row.embed_url,
-      coverUrl: row.cover_url,
+      coverUrl: row.cover_url || "https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?auto=format&fit=crop&w=600&q=80",
       color: "#a855f7",
       secondaryColor: "#c084fc",
       type: row.provider || "youtube",
@@ -304,6 +355,61 @@ export async function fetchUserSongs(userId) {
   } catch (err) {
     console.warn("Supabase fetchUserSongs error:", err);
     return [];
+  }
+}
+
+/**
+ * Subscribes to real-time additions to public.songs so the live feed updates instantly
+ * across all connected users without refreshing.
+ */
+export function subscribeToNewSongs(onNewSong) {
+  if (!isSupabaseConfigured() || !supabase) {
+    return null;
+  }
+
+  try {
+    const channel = supabase
+      .channel("public-songs-live-feed")
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "songs"
+        },
+        (payload) => {
+          if (payload && payload.new) {
+            const row = payload.new;
+            const newTrack = {
+              id: row.id,
+              userId: row.user_id,
+              uploaderName: row.uploader_name || "Community",
+              title: row.title,
+              artist: row.artist,
+              album: row.provider === "youtube" ? "YouTube Stream" : "Audio Stream",
+              genre: row.genre || "Community Drop",
+              duration: row.duration || 180,
+              audioUrl: row.url,
+              embedUrl: row.embed_url,
+              coverUrl: row.cover_url || "https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?auto=format&fit=crop&w=600&q=80",
+              color: "#a855f7",
+              secondaryColor: "#c084fc",
+              type: row.provider || "youtube",
+              videoId: (row.url && row.url.match(/(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|watch\?v=|watch\?.+&v=))([\w-]{11})/)) ? RegExp.$1 : null,
+              isCustom: true,
+              isPublic: true,
+              createdAt: row.created_at
+            };
+            onNewSong(newTrack);
+          }
+        }
+      )
+      .subscribe();
+
+    return channel;
+  } catch (err) {
+    console.warn("Could not establish real-time subscription on public.songs:", err);
+    return null;
   }
 }
 

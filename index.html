@@ -167,19 +167,49 @@
           <!-- Mood Filter Row -->
           <div class="genre-pills-row" id="genre-pills-container"></div>
 
-          <!-- Section: Featured Tracks -->
+          <!-- Section: Live Community Drops (Global User Import Feed) -->
+          <div class="content-section" id="section-community-drops">
+            <div class="section-title-row">
+              <div class="section-title-badge-group">
+                <h3 class="section-title">Community Discoveries</h3>
+                <span class="live-feed-pill" id="live-feed-status">
+                  <span class="live-dot"></span> LIVE FEED
+                </span>
+              </div>
+              <button class="btn-ghost-sm" id="btn-quick-import-shelf">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+                Drop Song
+              </button>
+            </div>
+            <div class="community-shelf-scroll" id="community-shelf-container">
+              <!-- Dynamically populated live community cards with 'Added by ...' badges -->
+            </div>
+          </div>
+
+          <!-- Section: Made For You -->
           <div class="content-section">
             <div class="section-title-row">
-              <h3 class="section-title">Featured Tracks</h3>
-              <span class="see-all-link">Show all</span>
+              <h3 class="section-title">Made For You</h3>
+              <span class="see-all-link">Daily Mixes</span>
             </div>
             <div class="cards-carousel-grid" id="featured-carousel"></div>
           </div>
 
-          <!-- Section: All Tracks (Spotify Table List) -->
+          <!-- Section: Apple Music Style Bento Genre Stations -->
           <div class="content-section">
             <div class="section-title-row">
-              <h3 class="section-title">All Tracks</h3>
+              <h3 class="section-title">Browse Categories</h3>
+              <span class="see-all-link">Soundscapes</span>
+            </div>
+            <div class="bento-genres-grid" id="bento-genres-grid">
+              <!-- Populated with rich gradient Apple Music bento cards -->
+            </div>
+          </div>
+
+          <!-- Section: Global Music Catalog (All Tracks Table) -->
+          <div class="content-section">
+            <div class="section-title-row">
+              <h3 class="section-title">Global Catalog</h3>
               <span class="track-count-badge" id="catalog-count-badge">8 songs</span>
             </div>
 
@@ -188,7 +218,7 @@
               <div class="table-header-row">
                 <span class="col-num">#</span>
                 <span class="col-title">Title</span>
-                <span class="col-album">Album</span>
+                <span class="col-album">Source</span>
                 <span class="col-genre">Genre</span>
                 <span class="col-duration">
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>

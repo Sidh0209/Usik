@@ -3,10 +3,11 @@
 -- Run this script in the Supabase SQL Editor (https://supabase.com/dashboard/project/_/sql)
 -- ==============================================================================
 
--- 1. Table for Individual User Songs (YouTube & Audio Streams)
+-- 1. Table for Global Songs Catalog (YouTube, YT Music & Audio Streams)
 CREATE TABLE IF NOT EXISTS public.songs (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
+    uploader_name TEXT DEFAULT 'Community',
     title TEXT NOT NULL,
     artist TEXT NOT NULL,
     url TEXT NOT NULL,
@@ -18,22 +19,29 @@ CREATE TABLE IF NOT EXISTS public.songs (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
--- Index for fast user queries
+-- Migration helper if table already exists without uploader_name
+ALTER TABLE public.songs ADD COLUMN IF NOT EXISTS uploader_name TEXT DEFAULT 'Community';
+
+-- Index for fast user queries & feed ordering
 CREATE INDEX IF NOT EXISTS idx_songs_user_id ON public.songs(user_id);
+CREATE INDEX IF NOT EXISTS idx_songs_created_at ON public.songs(created_at DESC);
 
 -- Enable RLS on songs
 ALTER TABLE public.songs ENABLE ROW LEVEL SECURITY;
 
 -- RLS Policies for songs table
+-- UNIVERSAL SHARING: Every user (authenticated or anonymous/guest) can view and play all songs!
+DROP POLICY IF EXISTS "Anyone can view all songs" ON public.songs;
 DROP POLICY IF EXISTS "Users can view their own songs" ON public.songs;
-CREATE POLICY "Users can view their own songs"
+CREATE POLICY "Anyone can view all songs"
     ON public.songs FOR SELECT
-    USING (auth.uid() = user_id);
+    USING (true);
 
 DROP POLICY IF EXISTS "Users can insert their own songs" ON public.songs;
-CREATE POLICY "Users can insert their own songs"
+DROP POLICY IF EXISTS "Users can insert songs" ON public.songs;
+CREATE POLICY "Users can insert songs"
     ON public.songs FOR INSERT
-    WITH CHECK (auth.uid() = user_id);
+    WITH CHECK (auth.uid() = user_id OR user_id IS NULL);
 
 DROP POLICY IF EXISTS "Users can update their own songs" ON public.songs;
 CREATE POLICY "Users can update their own songs"

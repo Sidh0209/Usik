@@ -1084,6 +1084,290 @@ body {
 }
 
 /* ==========================================================================
+   LIVE COMMUNITY FEED & MULTI-SHELVES (Apple Music & Spotify Hybrid)
+   ========================================================================== */
+
+.section-title-badge-group {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.live-feed-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(168, 85, 247, 0.16);
+  border: 1px solid rgba(168, 85, 247, 0.4);
+  color: #c084fc;
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.8px;
+  padding: 3px 10px;
+  border-radius: 9999px;
+  text-transform: uppercase;
+}
+
+.live-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #a855f7;
+  box-shadow: 0 0 8px #a855f7;
+  animation: livePulse 1.6s infinite ease-in-out;
+}
+
+@keyframes livePulse {
+  0% { transform: scale(0.9); opacity: 0.7; box-shadow: 0 0 4px #a855f7; }
+  50% { transform: scale(1.3); opacity: 1; box-shadow: 0 0 12px #c084fc; }
+  100% { transform: scale(0.9); opacity: 0.7; box-shadow: 0 0 4px #a855f7; }
+}
+
+.btn-ghost-sm {
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  color: #ffffff;
+  padding: 6px 14px;
+  border-radius: 20px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  transition: all var(--trans-fast);
+}
+
+.btn-ghost-sm:hover {
+  background: rgba(168, 85, 247, 0.25);
+  border-color: rgba(168, 85, 247, 0.6);
+  transform: translateY(-1px);
+}
+
+/* Community Drops Horizontal Scroll Shelf */
+.community-shelf-scroll {
+  display: flex;
+  gap: 16px;
+  overflow-x: auto;
+  padding: 6px 4px 16px 4px;
+  scroll-behavior: smooth;
+  scrollbar-width: none;
+}
+
+.community-shelf-scroll::-webkit-scrollbar {
+  display: none;
+}
+
+.community-song-card {
+  min-width: 170px;
+  max-width: 170px;
+  background: rgba(255, 255, 255, 0.04);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+  padding: 12px;
+  cursor: pointer;
+  position: relative;
+  transition: transform var(--trans-spring), background var(--trans-fast), box-shadow var(--trans-med);
+  display: flex;
+  flex-direction: column;
+}
+
+.community-song-card:hover {
+  transform: translateY(-6px);
+  background: rgba(255, 255, 255, 0.08);
+  box-shadow: 0 14px 28px rgba(0, 0, 0, 0.4), 0 0 20px rgba(168, 85, 247, 0.2);
+  border-color: rgba(168, 85, 247, 0.35);
+}
+
+.comm-art-box {
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  border-radius: 8px;
+  overflow: hidden;
+  position: relative;
+  margin-bottom: 10px;
+  box-shadow: 0 6px 14px rgba(0, 0, 0, 0.45);
+}
+
+.comm-art-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform var(--trans-med);
+}
+
+.community-song-card:hover .comm-art-img {
+  transform: scale(1.06);
+}
+
+.comm-uploader-tag {
+  position: absolute;
+  top: 6px;
+  left: 6px;
+  background: rgba(0, 0, 0, 0.65);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  color: #e2e8f0;
+  font-size: 0.62rem;
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: 12px;
+  max-width: 88%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  z-index: 2;
+}
+
+.comm-provider-badge {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  background: rgba(168, 85, 247, 0.85);
+  color: #ffffff;
+  font-size: 0.58rem;
+  font-weight: 800;
+  padding: 2px 5px;
+  border-radius: 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  z-index: 2;
+}
+
+.comm-play-btn {
+  position: absolute;
+  right: 8px;
+  bottom: 8px;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: var(--sp-purple);
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.5), 0 0 12px var(--sp-purple-glow);
+  opacity: 0;
+  transform: translateY(8px) scale(0.7);
+  transition: transform var(--trans-spring), opacity var(--trans-fast), background var(--trans-fast);
+  cursor: pointer;
+  z-index: 3;
+}
+
+.community-song-card:hover .comm-play-btn {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+}
+
+.comm-play-btn:hover {
+  background: var(--sp-purple-bright);
+  transform: scale(1.1);
+}
+
+.comm-title {
+  font-weight: 700;
+  font-size: 0.88rem;
+  color: #ffffff;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-bottom: 3px;
+}
+
+.comm-artist {
+  font-size: 0.76rem;
+  color: var(--text-subdued);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.comm-empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 36px 20px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px dashed rgba(255, 255, 255, 0.12);
+  border-radius: 12px;
+  width: 100%;
+  text-align: center;
+  gap: 10px;
+  color: var(--text-subdued);
+  font-size: 0.88rem;
+}
+
+/* ==========================================================================
+   APPLE MUSIC STYLE BENTO GENRE STATIONS GRID
+   ========================================================================== */
+
+.bento-genres-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 14px;
+  margin-bottom: 8px;
+}
+
+.bento-card {
+  position: relative;
+  height: 110px;
+  border-radius: 14px;
+  padding: 16px;
+  overflow: hidden;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  transition: transform var(--trans-spring), box-shadow var(--trans-med), border-color var(--trans-fast);
+  user-select: none;
+}
+
+.bento-card:hover {
+  transform: translateY(-4px) scale(1.02);
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.45);
+  border-color: rgba(255, 255, 255, 0.3);
+}
+
+.bento-card-title {
+  font-size: 1.05rem;
+  font-weight: 800;
+  color: #ffffff;
+  letter-spacing: -0.2px;
+  z-index: 2;
+  text-shadow: 0 2px 6px rgba(0,0,0,0.3);
+}
+
+.bento-card-sub {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.85);
+  z-index: 2;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.bento-card-icon {
+  position: absolute;
+  right: -10px;
+  bottom: -10px;
+  font-size: 3.4rem;
+  opacity: 0.25;
+  transform: rotate(15deg);
+  transition: transform var(--trans-spring), opacity var(--trans-fast);
+  pointer-events: none;
+}
+
+.bento-card:hover .bento-card-icon {
+  transform: rotate(0deg) scale(1.15);
+  opacity: 0.45;
+}
+
+/* ==========================================================================
    SPOTIFY TRACKS TABLE (macOS Row Physics & Heart Pop)
    ========================================================================== */
 

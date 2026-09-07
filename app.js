@@ -12,6 +12,8 @@ import {
   fetchUserLibrary,
   syncUserLibrary,
   saveSongToSupabase,
+  fetchAllPublicSongs,
+  subscribeToNewSongs,
   fetchUserSongs,
   deleteSongFromSupabase,
   DEFAULT_LIBRARY
@@ -21,6 +23,7 @@ import { detectMediaUrl, parseMediaMetadata } from "./mediaParser.js";
 class UsikSpotifyApp {
   constructor() {
     this.customTracks = [];
+    this.communityTracks = [];
     this.tracks = [...TRACKS_DATA];
     this.activeTrackIndex = 0;
     this.queue = [...TRACKS_DATA];
@@ -58,6 +61,8 @@ class UsikSpotifyApp {
     this.renderEnvironmentMenu();
     this.renderGenrePills();
     this.renderRecentsGrid();
+    this.renderCommunityShelf();
+    this.renderBentoGrid();
     this.renderFeaturedCarousel();
     this.renderTracksTable();
     this.renderLibraryList();
@@ -66,6 +71,8 @@ class UsikSpotifyApp {
     this.bindKeyboardShortcuts();
     this.updatePlayerUI();
     this.updateSidebarLikedCount();
+    this.loadGlobalSongs();
+    this.initRealtimeFeed();
   }
 
   initDOM() {
@@ -96,6 +103,10 @@ class UsikSpotifyApp {
       // Home Components
       recentsGrid: document.getElementById("recents-grid-container"),
       genrePills: document.getElementById("genre-pills-container"),
+      communityShelf: document.getElementById("community-shelf-container"),
+      bentoGenresGrid: document.getElementById("bento-genres-grid"),
+      btnQuickImportShelf: document.getElementById("btn-quick-import-shelf"),
+      liveFeedStatus: document.getElementById("live-feed-status"),
       featuredCarousel: document.getElementById("featured-carousel"),
       tracksTableBody: document.getElementById("tracks-table-body"),
       catalogCountBadge: document.getElementById("catalog-count-badge"),
@@ -389,6 +400,7 @@ class UsikSpotifyApp {
   }
 
   renderFeaturedCarousel() {
+    if (!this.dom.featuredCarousel) return;
     this.dom.featuredCarousel.innerHTML = "";
     this.tracks.forEach((track) => {
       const card = document.createElement("div");
@@ -408,14 +420,165 @@ class UsikSpotifyApp {
     });
   }
 
+  renderCommunityShelf() {
+    if (!this.dom.communityShelf) return;
+    this.dom.communityShelf.innerHTML = "";
+
+    const commList = this.communityTracks || [];
+
+    if (commList.length === 0) {
+      const empty = document.createElement("div");
+      empty.className = "comm-empty-state";
+      empty.innerHTML = `
+        <div style="font-size:1.8rem;">🎧</div>
+        <div style="font-weight:600; color:#ffffff;">No community drops yet</div>
+        <div style="font-size:0.78rem; opacity:0.8;">Import a YouTube or Audio stream to share it with everyone!</div>
+        <button class="btn-ghost-sm" id="btn-empty-drop" style="margin-top:4px;">+ Drop First Song</button>
+      `;
+      const dropBtn = empty.querySelector("#btn-empty-drop");
+      if (dropBtn) dropBtn.addEventListener("click", () => this.dom.btnOpenImport.click());
+      this.dom.communityShelf.appendChild(empty);
+      return;
+    }
+
+    commList.forEach((track) => {
+      const card = document.createElement("div");
+      card.className = "community-song-card";
+      card.innerHTML = `
+        <div class="comm-art-box">
+          <img src="${track.coverUrl}" alt="${track.title}" class="comm-art-img" loading="lazy" />
+          <span class="comm-uploader-tag" title="Added by ${track.uploaderName || 'Community'}">👤 ${track.uploaderName || 'Community'}</span>
+          <span class="comm-provider-badge">${track.type === "youtube" ? "YT" : "AUDIO"}</span>
+          <button class="comm-play-btn" title="Play">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="#000000"><polygon points="6 4 20 12 6 20 6 4"></polygon></svg>
+          </button>
+        </div>
+        <div class="comm-title" title="${track.title}">${track.title}</div>
+        <div class="comm-artist" title="${track.artist}">${track.artist}</div>
+      `;
+      card.addEventListener("click", () => this.playTrackById(track.id));
+      this.dom.communityShelf.appendChild(card);
+    });
+  }
+
+  renderBentoGrid() {
+    if (!this.dom.bentoGenresGrid) return;
+    this.dom.bentoGenresGrid.innerHTML = "";
+
+    const stations = [
+      { id: "Relax", name: "Lo-Fi Beats", sub: "Chillout & Study", bg: "linear-gradient(135deg, #10b981 0%, #06b6d4 100%)", icon: "🍵" },
+      { id: "Energy", name: "Synthwave", sub: "Retro Cyber Drive", bg: "linear-gradient(135deg, #ec4899 0%, #8b5cf6 100%)", icon: "🌴" },
+      { id: "Focus", name: "Cyberpunk", sub: "Neon High Velocity", bg: "linear-gradient(135deg, #f43f5e 0%, #fb923c 100%)", icon: "⚡" },
+      { id: "Ambient", name: "Deep Ambient", sub: "Cosmic Drift & Zen", bg: "linear-gradient(135deg, #6366f1 0%, #3b82f6 100%)", icon: "🌌" },
+      { id: "Acoustic", name: "Acoustic Sunset", sub: "Organic & Warm", bg: "linear-gradient(135deg, #f59e0b 0%, #ef4444 100%)", icon: "🎸" },
+      { id: "HipHop", name: "Night Lo-Fi", sub: "Tokyo Midnight", bg: "linear-gradient(135deg, #8b5cf6 0%, #ec4899 100%)", icon: "🔥" }
+    ];
+
+    stations.forEach((station) => {
+      const card = document.createElement("div");
+      card.className = "bento-card";
+      card.style.background = station.bg;
+      card.innerHTML = `
+        <div class="bento-card-sub">${station.sub}</div>
+        <div class="bento-card-title">${station.name}</div>
+        <div class="bento-card-icon">${station.icon}</div>
+      `;
+      card.addEventListener("click", () => {
+        this.activeGenre = station.id;
+        this.renderGenrePills();
+        this.renderTracksTable();
+        this.dom.tracksTableBody.scrollIntoView({ behavior: "smooth", block: "nearest" });
+        this.showToast(`Switched feed to ${station.name}`);
+      });
+      this.dom.bentoGenresGrid.appendChild(card);
+    });
+  }
+
+  async loadGlobalSongs() {
+    try {
+      const publicSongs = await fetchAllPublicSongs();
+      if (Array.isArray(publicSongs) && publicSongs.length > 0) {
+        this.communityTracks = publicSongs;
+
+        const seen = new Set();
+        const merged = [];
+
+        // 1. User's own custom tracks first
+        for (const t of (this.customTracks || [])) {
+          seen.add(t.id);
+          if (t.audioUrl) seen.add(t.audioUrl);
+          merged.push(t);
+        }
+
+        // 2. Community drops next
+        for (const t of publicSongs) {
+          if (!seen.has(t.id) && (!t.audioUrl || !seen.has(t.audioUrl))) {
+            seen.add(t.id);
+            if (t.audioUrl) seen.add(t.audioUrl);
+            merged.push(t);
+          }
+        }
+
+        // 3. Curated built-in catalog
+        for (const t of TRACKS_DATA) {
+          if (!seen.has(t.id)) {
+            merged.push(t);
+          }
+        }
+
+        this.tracks = merged;
+        this.queue = [...this.tracks];
+        this.renderCommunityShelf();
+        this.renderTracksTable();
+        this.renderFeaturedCarousel();
+        this.renderRecentsGrid();
+      }
+    } catch (err) {
+      console.warn("Could not load global songs:", err);
+    }
+  }
+
+  initRealtimeFeed() {
+    try {
+      subscribeToNewSongs((newTrack) => {
+        this.handleRealtimeNewSong(newTrack);
+      });
+    } catch (err) {
+      console.warn("Could not subscribe to real-time feed:", err);
+    }
+  }
+
+  handleRealtimeNewSong(newTrack) {
+    if (!newTrack || !newTrack.id) return;
+
+    // Prevent duplicate entries
+    const exists = this.tracks.some(t => t.id === newTrack.id || (t.audioUrl && t.audioUrl === newTrack.audioUrl));
+    if (exists) return;
+
+    this.communityTracks.unshift(newTrack);
+    this.tracks.unshift(newTrack);
+    this.queue.unshift(newTrack);
+
+    this.renderCommunityShelf();
+    this.renderTracksTable();
+    this.renderFeaturedCarousel();
+    this.renderRecentsGrid();
+
+    // Subtle celebration toast
+    this.showToast(`🎶 ${newTrack.uploaderName} just dropped "${newTrack.title}"!`);
+  }
+
   getFilteredTracks() {
     return this.tracks.filter(t => {
-      const matchGenre = this.activeGenre === "all" || t.mood === this.activeGenre;
+      const matchGenre = this.activeGenre === "all" || 
+        t.mood === this.activeGenre ||
+        (t.genre && t.genre.toLowerCase().includes(this.activeGenre.toLowerCase()));
       const q = this.searchQuery.toLowerCase().trim();
       const matchSearch = !q ||
         t.title.toLowerCase().includes(q) ||
         t.artist.toLowerCase().includes(q) ||
-        t.album.toLowerCase().includes(q);
+        (t.album && t.album.toLowerCase().includes(q)) ||
+        (t.uploaderName && t.uploaderName.toLowerCase().includes(q));
       return matchGenre && matchSearch;
     });
   }
@@ -1058,10 +1221,11 @@ class UsikSpotifyApp {
 
     if (this.dom.btnCopySqlSchema) {
       this.dom.btnCopySqlSchema.addEventListener("click", async () => {
-        const sql = `-- Usik Database Schema for Supabase
+        const sql = `-- Usik Database Schema for Supabase (Universal Song Feed & User Library)
 CREATE TABLE IF NOT EXISTS public.songs (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
+    uploader_name TEXT DEFAULT 'Community',
     title TEXT NOT NULL,
     artist TEXT NOT NULL,
     url TEXT NOT NULL,
@@ -1073,8 +1237,11 @@ CREATE TABLE IF NOT EXISTS public.songs (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_songs_user_id ON public.songs(user_id);
+CREATE INDEX IF NOT EXISTS idx_songs_created_at ON public.songs(created_at DESC);
 ALTER TABLE public.songs ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "Users can manage their own songs" ON public.songs FOR ALL USING (auth.uid() = user_id);
+CREATE POLICY "Anyone can view all songs" ON public.songs FOR SELECT USING (true);
+CREATE POLICY "Users can insert songs" ON public.songs FOR INSERT WITH CHECK (auth.uid() = user_id OR user_id IS NULL);
+CREATE POLICY "Users can delete their own songs" ON public.songs FOR DELETE USING (auth.uid() = user_id);
 
 CREATE TABLE IF NOT EXISTS public.user_library (
     user_id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
@@ -1194,9 +1361,8 @@ CREATE POLICY "Users can manage their own library" ON public.user_library FOR AL
           this.customTracks = localCustom;
         }
 
-        // Merge custom tracks with default curated catalog
-        this.tracks = [...this.customTracks, ...TRACKS_DATA];
-        this.queue = [...this.tracks];
+        // Merge custom tracks with global community catalog and default tracks
+        await this.loadGlobalSongs();
 
         if (data.settings) {
           if (typeof data.settings.volume === "number") {
@@ -1239,6 +1405,7 @@ CREATE POLICY "Users can manage their own library" ON public.user_library FOR AL
     }
 
     this.customTracks = this.customTracks.filter(t => t.id !== trackId);
+    this.communityTracks = this.communityTracks.filter(t => t.id !== trackId);
     this.tracks = this.tracks.filter(t => t.id !== trackId);
     this.queue = this.queue.filter(t => t.id !== trackId);
     this.likedTrackIds.delete(trackId);
@@ -1253,6 +1420,7 @@ CREATE POLICY "Users can manage their own library" ON public.user_library FOR AL
     }
 
     this.saveCurrentUserData();
+    this.renderCommunityShelf();
     this.renderTracksTable();
     this.renderFeaturedCarousel();
     this.renderRecentsGrid();
@@ -1284,6 +1452,9 @@ CREATE POLICY "Users can manage their own library" ON public.user_library FOR AL
     this.dom.btnOpenImport.addEventListener("click", openModal);
     if (this.dom.pillImportLib) {
       this.dom.pillImportLib.addEventListener("click", openModal);
+    }
+    if (this.dom.btnQuickImportShelf) {
+      this.dom.btnQuickImportShelf.addEventListener("click", openModal);
     }
     this.dom.btnCloseImportModal.addEventListener("click", closeModal);
     this.dom.btnCancelImport.addEventListener("click", closeModal);
@@ -1352,6 +1523,9 @@ CREATE POLICY "Users can manage their own library" ON public.user_library FOR AL
 
       const title = this.dom.importEditTitle.value.trim() || this.currentParsedTrack.title || "Untitled Track";
       const artist = this.dom.importEditArtist.value.trim() || this.currentParsedTrack.artist || "Unknown Artist";
+      const uploaderName = this.currentUser?.user_metadata?.full_name || 
+                           this.currentUser?.email?.split("@")[0] || 
+                           "Community";
 
       let trackId = "custom-" + Date.now();
 
@@ -1359,8 +1533,9 @@ CREATE POLICY "Users can manage their own library" ON public.user_library FOR AL
         id: trackId,
         title: title,
         artist: artist,
+        uploaderName: uploaderName,
         album: this.currentParsedTrack.provider || "Web Stream",
-        genre: "Imported",
+        genre: "Community Drop",
         duration: 180,
         audioUrl: this.currentParsedTrack.url,
         embedUrl: this.currentParsedTrack.embedUrl || null,
@@ -1369,15 +1544,16 @@ CREATE POLICY "Users can manage their own library" ON public.user_library FOR AL
         secondaryColor: "#c084fc",
         type: this.currentParsedTrack.type,
         videoId: this.currentParsedTrack.videoId || null,
-        isCustom: true
+        isCustom: true,
+        isPublic: true
       };
 
-      // Direct insertion to dedicated Supabase 'songs' table
+      // Direct insertion to dedicated Supabase 'songs' table (Universal Community pool)
       if (this.currentUser && this.currentUser.id && this.currentUser.id !== "guest") {
         this.dom.btnSubmitImport.disabled = true;
-        this.dom.btnSubmitImport.textContent = "Saving to Supabase...";
+        this.dom.btnSubmitImport.textContent = "Publishing to Feed...";
         try {
-          const savedRow = await saveSongToSupabase(newTrack, this.currentUser.id);
+          const savedRow = await saveSongToSupabase(newTrack, this.currentUser.id, uploaderName);
           if (savedRow && savedRow.id) {
             newTrack.id = savedRow.id;
           }
@@ -1389,18 +1565,20 @@ CREATE POLICY "Users can manage their own library" ON public.user_library FOR AL
         }
       }
 
+      this.communityTracks.unshift(newTrack);
       this.customTracks.unshift(newTrack);
       this.tracks.unshift(newTrack);
       this.queue.unshift(newTrack);
 
       this.saveCurrentUserData();
+      this.renderCommunityShelf();
       this.renderTracksTable();
       this.renderFeaturedCarousel();
       this.renderRecentsGrid();
       this.playTrackById(newTrack.id);
 
       closeModal();
-      this.showToast(`Added "${newTrack.title}" to Library & Supabase!`);
+      this.showToast(`Shared "${newTrack.title}" with the community!`);
     });
   }
 
