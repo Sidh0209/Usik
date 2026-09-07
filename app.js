@@ -13,9 +13,11 @@ import {
   syncUserLibrary,
   DEFAULT_LIBRARY
 } from "./supabaseClient.js";
+import { detectMediaUrl, parseMediaMetadata } from "./mediaParser.js";
 
 class UsikSpotifyApp {
   constructor() {
+    this.customTracks = [];
     this.tracks = [...TRACKS_DATA];
     this.activeTrackIndex = 0;
     this.queue = [...TRACKS_DATA];
@@ -30,6 +32,14 @@ class UsikSpotifyApp {
     this.authMode = "login"; // "login" | "register"
     this._syncTimeout = null;
 
+    // YouTube Stream Player State
+    this.isYouTubePlaying = false;
+    this.ytCurrentTime = 0;
+    this.ytDuration = 180;
+    this._ytPollInterval = null;
+    this.currentParsedTrack = null;
+    this._urlDebounceTimer = null;
+
     // Initial default state before user library load
     this.likedTrackIds = new Set(DEFAULT_LIBRARY.likedTracks);
     this.customPlaylists = [...DEFAULT_LIBRARY.playlists];
@@ -41,6 +51,7 @@ class UsikSpotifyApp {
     this.initGreeting();
     this.initEngines();
     this.initAuth();
+    this.initImportModal();
     this.renderEnvironmentMenu();
     this.renderGenrePills();
     this.renderRecentsGrid();
@@ -169,6 +180,30 @@ class UsikSpotifyApp {
       inputSupabaseKey: document.getElementById("input-supabase-key"),
       btnCopySqlSchema: document.getElementById("btn-copy-sql-schema"),
 
+      // Add Track / Import Modal
+      btnOpenImport: document.getElementById("btn-open-import"),
+      pillImportLib: document.getElementById("pill-import-lib"),
+      addTrackModal: document.getElementById("add-track-modal"),
+      btnCloseImportModal: document.getElementById("btn-close-import-modal"),
+      btnCancelImport: document.getElementById("btn-cancel-import"),
+      btnSubmitImport: document.getElementById("btn-submit-import"),
+      inputMediaUrl: document.getElementById("input-media-url"),
+      importTypeBadge: document.getElementById("import-type-badge"),
+      importPreviewCard: document.getElementById("import-preview-card"),
+      importPreviewThumb: document.getElementById("import-preview-thumb"),
+      importEditTitle: document.getElementById("import-edit-title"),
+      importEditArtist: document.getElementById("import-edit-artist"),
+      importSourceTag: document.getElementById("import-source-tag"),
+      importLoadingState: document.getElementById("import-loading-state"),
+      importAlert: document.getElementById("import-alert"),
+
+      // YouTube Audio Stream Dock
+      youtubeDock: document.getElementById("youtube-audio-dock"),
+      dockHeader: document.getElementById("dock-header"),
+      btnToggleDock: document.getElementById("btn-toggle-dock"),
+      youtubeIframe: document.getElementById("youtube-stream-iframe"),
+      dockTitleText: document.getElementById("dock-title-text"),
+
       toast: document.getElementById("app-toast"),
       toastMessage: document.getElementById("toast-message")
     };
@@ -184,20 +219,74 @@ class UsikSpotifyApp {
 
   initEngines() {
     this.audioEngine.callbacks.onTimeUpdate = (current, duration) => {
-      this.updateProgress(current, duration);
+      if (!this.isYouTubePlaying) {
+        this.updateProgress(current, duration);
+      }
     };
 
     this.audioEngine.callbacks.onTrackEnd = () => {
-      this.handleTrackEnd();
+      if (!this.isYouTubePlaying) {
+        this.handleTrackEnd();
+      }
     };
 
     this.audioEngine.callbacks.onStateChange = (isPlaying) => {
-      this.updatePlayStateUI(isPlaying);
+      if (!this.isYouTubePlaying) {
+        this.updatePlayStateUI(isPlaying);
+      }
     };
+
+    // YouTube iframe postMessage communication
+    window.addEventListener("message", (event) => {
+      if (typeof event.data !== "string") return;
+      try {
+        const data = JSON.parse(event.data);
+        if (data.event === "infoDelivery" && data.info) {
+          if (typeof data.info.currentTime === "number") {
+            this.ytCurrentTime = data.info.currentTime;
+            this.updateProgress(this.ytCurrentTime, this.ytDuration || 180);
+          }
+          if (typeof data.info.duration === "number" && data.info.duration > 0) {
+            this.ytDuration = data.info.duration;
+            this.dom.totalDurationText.textContent = this.formatTime(this.ytDuration);
+          }
+          if (data.info.playerState === 1) { // Playing
+            this.isYouTubePlaying = true;
+            this.updatePlayStateUI(true);
+          } else if (data.info.playerState === 2) { // Paused
+            this.isYouTubePlaying = false;
+            this.updatePlayStateUI(false);
+          } else if (data.info.playerState === 0) { // Ended
+            this.isYouTubePlaying = false;
+            this.handleTrackEnd();
+          }
+        }
+      } catch (err) {}
+    });
+
+    // YouTube Audio Dock minimize / expand
+    this.dom.btnToggleDock.addEventListener("click", () => {
+      this.dom.youtubeDock.classList.toggle("minimized");
+    });
+    this.dom.dockHeader.addEventListener("click", (e) => {
+      if (e.target !== this.dom.btnToggleDock && !this.dom.btnToggleDock.contains(e.target)) {
+        this.dom.youtubeDock.classList.toggle("minimized");
+      }
+    });
 
     const current = this.getCurrentTrack();
     if (current) {
       this.setTrackTheme(current);
+    }
+  }
+
+  postYouTube(func, args = []) {
+    const iframe = this.dom.youtubeIframe;
+    if (iframe && iframe.contentWindow) {
+      iframe.contentWindow.postMessage(
+        JSON.stringify({ event: "command", func: func, args: args }),
+        "*"
+      );
     }
   }
 
@@ -470,9 +559,48 @@ class UsikSpotifyApp {
     if (index !== -1) {
       this.activeTrackIndex = index;
       const track = this.queue[this.activeTrackIndex];
-      this.audioEngine.loadTrack(track);
-      this.setTrackTheme(track);
-      this.updatePlayerUI();
+
+      if (track.type === "youtube") {
+        // 1. YouTube Audio Stream Mode
+        this.audioEngine.pause();
+        this.isYouTubePlaying = true;
+        this.ytCurrentTime = 0;
+        this.ytDuration = track.duration || 180;
+
+        this.dom.youtubeDock.style.display = "flex";
+        this.dom.dockTitleText.textContent = track.title;
+
+        if (this.dom.youtubeIframe.src !== track.embedUrl) {
+          this.dom.youtubeIframe.src = track.embedUrl;
+        } else {
+          this.postYouTube("playVideo");
+        }
+
+        clearInterval(this._ytPollInterval);
+        this._ytPollInterval = setInterval(() => {
+          if (this.isYouTubePlaying) {
+            this.postYouTube("getCurrentTime");
+            this.postYouTube("getDuration");
+          }
+        }, 500);
+
+        this.setTrackTheme(track);
+        this.updatePlayerUI();
+        this.updatePlayStateUI(true);
+      } else {
+        // 2. Standard Audio Stream (.mp3)
+        if (this.isYouTubePlaying) {
+          this.postYouTube("pauseVideo");
+          this.isYouTubePlaying = false;
+        }
+        this.dom.youtubeDock.style.display = "none";
+        clearInterval(this._ytPollInterval);
+
+        this.audioEngine.loadTrack(track);
+        this.setTrackTheme(track);
+        this.updatePlayerUI();
+      }
+
       this.renderTracksTable();
       this.renderQueue();
       this.renderLyrics();
@@ -486,7 +614,7 @@ class UsikSpotifyApp {
     this.dom.playerThumb.src = track.coverUrl;
     this.dom.playerTitle.textContent = track.title;
     this.dom.playerArtist.textContent = track.artist;
-    this.dom.totalDurationText.textContent = this.formatTime(track.duration);
+    this.dom.totalDurationText.textContent = this.formatTime(track.type === "youtube" ? this.ytDuration : track.duration);
 
     const isLiked = this.likedTrackIds.has(track.id);
     this.dom.playerLikeBtn.classList.toggle("liked", isLiked);
@@ -522,8 +650,14 @@ class UsikSpotifyApp {
 
   handleTrackEnd() {
     if (this.repeatMode === "one") {
-      this.audioEngine.seek(0);
-      this.audioEngine.play();
+      const current = this.getCurrentTrack();
+      if (current && current.type === "youtube") {
+        this.postYouTube("seekTo", [0, true]);
+        this.postYouTube("playVideo");
+      } else {
+        this.audioEngine.seek(0);
+        this.audioEngine.play();
+      }
     } else {
       this.playNextTrack();
     }
@@ -537,11 +671,7 @@ class UsikSpotifyApp {
     }
     const nextTrack = this.queue[this.activeTrackIndex];
     if (nextTrack) {
-      this.audioEngine.loadTrack(nextTrack);
-      this.setTrackTheme(nextTrack);
-      this.updatePlayerUI();
-      this.renderTracksTable();
-      this.renderQueue();
+      this.playTrackById(nextTrack.id);
     }
   }
 
@@ -549,11 +679,7 @@ class UsikSpotifyApp {
     this.activeTrackIndex = (this.activeTrackIndex - 1 + this.queue.length) % this.queue.length;
     const prevTrack = this.queue[this.activeTrackIndex];
     if (prevTrack) {
-      this.audioEngine.loadTrack(prevTrack);
-      this.setTrackTheme(prevTrack);
-      this.updatePlayerUI();
-      this.renderTracksTable();
-      this.renderQueue();
+      this.playTrackById(prevTrack.id);
     }
   }
 
@@ -678,10 +804,25 @@ class UsikSpotifyApp {
 
     // Player Controls
     this.dom.btnPlayPause.addEventListener("click", () => {
-      if (!this.audioEngine.currentTrack) {
-        this.playTrackById(this.getCurrentTrack().id);
+      const track = this.getCurrentTrack();
+      if (!track) return;
+
+      if (track.type === "youtube") {
+        if (this.isYouTubePlaying) {
+          this.postYouTube("pauseVideo");
+          this.isYouTubePlaying = false;
+          this.updatePlayStateUI(false);
+        } else {
+          this.postYouTube("playVideo");
+          this.isYouTubePlaying = true;
+          this.updatePlayStateUI(true);
+        }
       } else {
-        this.audioEngine.togglePlay();
+        if (!this.audioEngine.currentTrack) {
+          this.playTrackById(track.id);
+        } else {
+          this.audioEngine.togglePlay();
+        }
       }
     });
 
@@ -731,8 +872,15 @@ class UsikSpotifyApp {
       const rect = this.dom.progressTrack.getBoundingClientRect();
       const pos = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
       const track = this.getCurrentTrack();
-      const duration = track ? track.duration : 180;
-      this.audioEngine.seek(pos * duration);
+      const duration = track ? (track.type === "youtube" ? this.ytDuration : track.duration) : 180;
+
+      if (track && track.type === "youtube") {
+        const targetSecs = pos * duration;
+        this.postYouTube("seekTo", [targetSecs, true]);
+        this.updateProgress(targetSecs, duration);
+      } else {
+        this.audioEngine.seek(pos * duration);
+      }
     };
 
     this.dom.progressTrack.addEventListener("mousedown", (e) => {
@@ -751,6 +899,7 @@ class UsikSpotifyApp {
       const rect = this.dom.volBarTrack.getBoundingClientRect();
       const vol = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
       this.audioEngine.setVolume(vol);
+      this.postYouTube("setVolume", [Math.round(vol * 100)]);
       this.dom.volFill.style.width = `${vol * 100}%`;
       this.saveCurrentUserData();
     };
@@ -758,6 +907,7 @@ class UsikSpotifyApp {
 
     this.dom.btnVolumeMute.addEventListener("click", () => {
       const isMuted = this.audioEngine.toggleMute();
+      this.postYouTube(isMuted ? "mute" : "unMute");
       this.dom.volFill.style.width = isMuted ? "0%" : `${this.audioEngine.volume * 100}%`;
       this.saveCurrentUserData();
     });
@@ -950,6 +1100,7 @@ CREATE POLICY "Users can manage their own library" ON public.user_library FOR AL
       const payload = {
         likedTracks: Array.from(this.likedTrackIds),
         playlists: this.customPlaylists,
+        customTracks: this.customTracks || [],
         settings: {
           volume: this.audioEngine.volume,
           currentEnv: this.currentEnv,
@@ -971,6 +1122,16 @@ CREATE POLICY "Users can manage their own library" ON public.user_library FOR AL
         if (Array.isArray(data.playlists)) {
           this.customPlaylists = [...data.playlists];
         }
+        if (Array.isArray(data.customTracks)) {
+          this.customTracks = data.customTracks;
+        } else {
+          this.customTracks = [];
+        }
+
+        // Merge custom tracks with default curated catalog
+        this.tracks = [...this.customTracks, ...TRACKS_DATA];
+        this.queue = [...this.tracks];
+
         if (data.settings) {
           if (typeof data.settings.volume === "number") {
             this.audioEngine.setVolume(data.settings.volume);
@@ -993,11 +1154,136 @@ CREATE POLICY "Users can manage their own library" ON public.user_library FOR AL
         this.updateSidebarLikedCount();
         this.renderLibraryList();
         this.renderTracksTable();
+        this.renderFeaturedCarousel();
+        this.renderRecentsGrid();
         this.updatePlayerUI();
       }
     } catch (err) {
       console.warn("Error loading user library:", err);
     }
+  }
+
+  initImportModal() {
+    const openModal = () => {
+      this.dom.addTrackModal.classList.add("open");
+      this.dom.inputMediaUrl.value = "";
+      this.dom.importTypeBadge.style.display = "none";
+      this.dom.importPreviewCard.style.display = "none";
+      this.dom.importLoadingState.style.display = "none";
+      this.dom.importAlert.style.display = "none";
+      this.dom.btnSubmitImport.disabled = true;
+      this.currentParsedTrack = null;
+      setTimeout(() => this.dom.inputMediaUrl.focus(), 100);
+    };
+
+    const closeModal = () => {
+      this.dom.addTrackModal.classList.remove("open");
+      this.dom.importAlert.style.display = "none";
+      this.currentParsedTrack = null;
+    };
+
+    this.dom.btnOpenImport.addEventListener("click", openModal);
+    if (this.dom.pillImportLib) {
+      this.dom.pillImportLib.addEventListener("click", openModal);
+    }
+    this.dom.btnCloseImportModal.addEventListener("click", closeModal);
+    this.dom.btnCancelImport.addEventListener("click", closeModal);
+    this.dom.addTrackModal.addEventListener("click", (e) => {
+      if (e.target === this.dom.addTrackModal) closeModal();
+    });
+
+    // Real-time URL Detection & Metadata Fetch
+    this.dom.inputMediaUrl.addEventListener("input", () => {
+      clearTimeout(this._urlDebounceTimer);
+      const val = this.dom.inputMediaUrl.value.trim();
+      this.dom.importAlert.style.display = "none";
+
+      if (!val) {
+        this.dom.importTypeBadge.style.display = "none";
+        this.dom.importPreviewCard.style.display = "none";
+        this.dom.btnSubmitImport.disabled = true;
+        return;
+      }
+
+      const detected = detectMediaUrl(val);
+      if (detected.error) {
+        this.dom.importTypeBadge.style.display = "none";
+        this.dom.importPreviewCard.style.display = "none";
+        this.dom.btnSubmitImport.disabled = true;
+        return;
+      }
+
+      this.dom.importTypeBadge.textContent = detected.provider || "Audio Stream";
+      this.dom.importTypeBadge.style.display = "block";
+      this.dom.importLoadingState.style.display = "flex";
+
+      this._urlDebounceTimer = setTimeout(async () => {
+        try {
+          const parsed = await parseMediaMetadata(val);
+          this.dom.importLoadingState.style.display = "none";
+
+          if (parsed.error) {
+            this.dom.importAlert.textContent = parsed.error;
+            this.dom.importAlert.style.display = "block";
+            this.dom.btnSubmitImport.disabled = true;
+            return;
+          }
+
+          this.currentParsedTrack = parsed;
+          this.dom.importPreviewThumb.src = parsed.coverUrl;
+          this.dom.importEditTitle.value = parsed.title || "Untitled Track";
+          this.dom.importEditArtist.value = parsed.artist || "Unknown Artist";
+          this.dom.importSourceTag.textContent = parsed.type === "youtube"
+            ? `${parsed.provider} • Zero-Key Embed`
+            : "Direct Audio Stream";
+
+          this.dom.importPreviewCard.style.display = "flex";
+          this.dom.btnSubmitImport.disabled = false;
+        } catch (err) {
+          this.dom.importLoadingState.style.display = "none";
+          this.dom.importAlert.textContent = "Could not fetch metadata for that URL.";
+          this.dom.importAlert.style.display = "block";
+        }
+      }, 350);
+    });
+
+    // Save Track to Library
+    this.dom.btnSubmitImport.addEventListener("click", () => {
+      if (!this.currentParsedTrack) return;
+
+      const title = this.dom.importEditTitle.value.trim() || this.currentParsedTrack.title || "Untitled Track";
+      const artist = this.dom.importEditArtist.value.trim() || this.currentParsedTrack.artist || "Unknown Artist";
+
+      const newTrack = {
+        id: "custom-" + Date.now(),
+        title: title,
+        artist: artist,
+        album: this.currentParsedTrack.provider || "Web Stream",
+        genre: "Imported",
+        duration: 180,
+        audioUrl: this.currentParsedTrack.url,
+        embedUrl: this.currentParsedTrack.embedUrl || null,
+        coverUrl: this.currentParsedTrack.coverUrl,
+        color: "#a855f7",
+        secondaryColor: "#c084fc",
+        type: this.currentParsedTrack.type,
+        videoId: this.currentParsedTrack.videoId || null,
+        isCustom: true
+      };
+
+      this.customTracks.unshift(newTrack);
+      this.tracks.unshift(newTrack);
+      this.queue.unshift(newTrack);
+
+      this.saveCurrentUserData();
+      this.renderTracksTable();
+      this.renderFeaturedCarousel();
+      this.renderRecentsGrid();
+      this.playTrackById(newTrack.id);
+
+      closeModal();
+      this.showToast(`Added "${newTrack.title}" to Library!`);
+    });
   }
 
   openAuthModal(mode = "login") {

@@ -2012,6 +2012,222 @@ body {
   line-height: 1.45;
 }
 
+/* Import Music Modal Styles */
+.add-track-modal-box {
+  width: 440px;
+  padding: 24px;
+}
+
+.import-input-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.import-input-wrap .spotify-input {
+  width: 100%;
+  padding-right: 90px;
+}
+
+.import-type-badge {
+  position: absolute;
+  right: 8px;
+  padding: 3px 8px;
+  border-radius: 4px;
+  background: var(--sp-purple-tint);
+  border: 1px solid rgba(168, 85, 247, 0.4);
+  color: var(--sp-purple-bright);
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  pointer-events: none;
+}
+
+.import-preview-card {
+  display: flex;
+  gap: 14px;
+  background: var(--sp-highlight);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+  padding: 12px;
+  align-items: center;
+  animation: macosPageSlide 0.3s var(--macos-spring);
+}
+
+.import-preview-thumb {
+  width: 72px;
+  height: 72px;
+  border-radius: 8px;
+  object-fit: cover;
+  flex-shrink: 0;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+}
+
+.import-preview-meta {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  overflow: hidden;
+}
+
+.import-edit-title {
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.15);
+  color: #ffffff;
+  font-family: var(--font-family);
+  font-size: 0.92rem;
+  font-weight: 700;
+  outline: none;
+  padding: 2px 0;
+  transition: border-color var(--trans-fast);
+}
+
+.import-edit-title:focus {
+  border-color: var(--sp-purple);
+}
+
+.import-edit-artist {
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid transparent;
+  color: var(--text-subdued);
+  font-family: var(--font-family);
+  font-size: 0.8rem;
+  outline: none;
+  padding: 2px 0;
+  transition: border-color var(--trans-fast), color var(--trans-fast);
+}
+
+.import-edit-artist:focus {
+  color: #ffffff;
+  border-color: var(--sp-purple);
+}
+
+.import-source-tag {
+  font-size: 0.68rem;
+  color: var(--sp-purple-bright);
+  font-weight: 600;
+  margin-top: 2px;
+}
+
+.import-loading-state {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 0.82rem;
+  color: var(--text-subdued);
+  padding: 6px 0;
+}
+
+.lib-filter-pill.accent {
+  background: var(--sp-purple-tint);
+  border: 1px solid rgba(168, 85, 247, 0.35);
+  color: var(--sp-purple-bright);
+}
+
+.lib-filter-pill.accent:hover {
+  background: rgba(168, 85, 247, 0.35);
+  color: #ffffff;
+}
+
+/* YouTube Audio Stream Dock (macOS Floating Glass Dock) */
+.youtube-audio-dock {
+  position: fixed;
+  bottom: 98px;
+  right: 18px;
+  width: 280px;
+  background: var(--sp-elevated);
+  border: 1px solid rgba(168, 85, 247, 0.3);
+  border-radius: 12px;
+  box-shadow: 0 16px 36px rgba(0, 0, 0, 0.8), 0 0 16px rgba(168, 85, 247, 0.2);
+  z-index: 90;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  transition: width 0.35s var(--macos-spring), height 0.35s var(--macos-spring), transform 0.35s var(--macos-spring);
+  backdrop-filter: blur(16px);
+}
+
+.youtube-audio-dock.minimized {
+  width: 190px;
+}
+
+.youtube-audio-dock.minimized .dock-iframe-container {
+  height: 0;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.dock-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  background: rgba(255, 255, 255, 0.05);
+  cursor: pointer;
+  user-select: none;
+}
+
+.dock-title-flex {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.status-pulse-dot.mini {
+  width: 6px;
+  height: 6px;
+}
+
+.dock-title-text {
+  font-size: 0.74rem;
+  font-weight: 700;
+  color: var(--sp-purple-bright);
+}
+
+.dock-actions-row {
+  display: flex;
+  align-items: center;
+}
+
+.dock-toggle-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-subdued);
+  cursor: pointer;
+  width: 20px;
+  height: 20px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: color var(--trans-fast), transform var(--trans-fast);
+}
+
+.youtube-audio-dock.minimized .dock-toggle-btn svg {
+  transform: rotate(180deg);
+}
+
+.dock-toggle-btn:hover {
+  color: #ffffff;
+}
+
+.dock-iframe-container {
+  width: 100%;
+  height: 158px;
+  background: #000000;
+  transition: height 0.35s var(--macos-spring), opacity 0.2s ease;
+}
+
+.dock-iframe-container iframe {
+  width: 100%;
+  height: 100%;
+  border: none;
+  display: block;
+}
+
 /* macOS Drop Banner Notification */
 .spotify-toast {
   position: fixed;

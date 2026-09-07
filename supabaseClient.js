@@ -146,6 +146,7 @@ export function onAuthStateChange(callback) {
 export const DEFAULT_LIBRARY = {
   likedTracks: ["track-1", "track-3"],
   playlists: ["Chill Lo-Fi Vibes", "Cyberpunk 2099", "Deep Focus Room"],
+  customTracks: [],
   settings: {
     volume: 0.85,
     currentEnv: "cosmic",
@@ -158,12 +159,13 @@ export async function fetchUserLibrary(userId = "guest") {
   const localKey = `usik_library_${userId}`;
   const localRaw = localStorage.getItem(localKey);
   let localData = localRaw ? JSON.parse(localRaw) : { ...DEFAULT_LIBRARY };
+  if (!Array.isArray(localData.customTracks)) localData.customTracks = [];
 
   if (isSupabaseConfigured() && supabase && userId && userId !== "guest") {
     try {
       const { data, error } = await supabase
         .from("user_library")
-        .select("liked_tracks, playlists, settings")
+        .select("liked_tracks, playlists, custom_tracks, settings")
         .eq("user_id", userId)
         .maybeSingle();
 
@@ -171,6 +173,7 @@ export async function fetchUserLibrary(userId = "guest") {
         const remoteData = {
           likedTracks: Array.isArray(data.liked_tracks) ? data.liked_tracks : localData.likedTracks,
           playlists: Array.isArray(data.playlists) ? data.playlists : localData.playlists,
+          customTracks: Array.isArray(data.custom_tracks) ? data.custom_tracks : (localData.customTracks || []),
           settings: data.settings ? { ...DEFAULT_LIBRARY.settings, ...data.settings } : localData.settings
         };
         localStorage.setItem(localKey, JSON.stringify(remoteData));
@@ -197,6 +200,7 @@ export async function syncUserLibrary(userId = "guest", data) {
             user_id: userId,
             liked_tracks: data.likedTracks || [],
             playlists: data.playlists || [],
+            custom_tracks: data.customTracks || [],
             settings: data.settings || DEFAULT_LIBRARY.settings,
             updated_at: new Date().toISOString()
           },

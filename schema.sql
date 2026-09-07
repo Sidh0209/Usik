@@ -8,6 +8,7 @@ CREATE TABLE IF NOT EXISTS public.user_library (
     user_id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
     liked_tracks JSONB DEFAULT '[]'::jsonb,
     playlists JSONB DEFAULT '[]'::jsonb,
+    custom_tracks JSONB DEFAULT '[]'::jsonb,
     settings JSONB DEFAULT '{"volume": 0.85, "currentEnv": "cosmic", "isShuffle": false, "repeatMode": "off"}'::jsonb,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
