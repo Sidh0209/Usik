@@ -599,11 +599,11 @@ class UsikSpotifyApp {
     if (!track) return false;
     const myIds = this.getMyUploadedIds();
     if (myIds.has(track.id)) return true;
-    if (track.isCustom) return true;
     if (this.currentUser && track.userId && track.userId === this.currentUser.id) return true;
     if (track.uploaderName === "You") return true;
     const currentName = this.currentUser?.user_metadata?.full_name || this.currentUser?.email?.split("@")[0];
     if (currentName && track.uploaderName && track.uploaderName.toLowerCase() === currentName.toLowerCase()) return true;
+    if (this.customTracks.some(c => c.id === track.id || (c.audioUrl && c.audioUrl === track.audioUrl))) return true;
     return false;
   }
 
@@ -819,9 +819,14 @@ class UsikSpotifyApp {
               s.genre = v.label;
             }
           }
-          if (myIds.has(s.id) || (this.currentUser && s.userId && s.userId === this.currentUser.id)) {
+          const currentUserName = this.currentUser?.user_metadata?.full_name || this.currentUser?.email?.split("@")[0];
+          const isOwner = myIds.has(s.id) || 
+                          (this.currentUser && s.userId && s.userId === this.currentUser.id) ||
+                          (currentUserName && s.uploaderName && s.uploaderName.toLowerCase() === currentUserName.toLowerCase());
+          if (isOwner) {
             s.isCustom = true;
             s.uploaderName = "You";
+            this.saveMyUploadedId(s.id);
           }
         });
 
@@ -2030,6 +2035,36 @@ END $$;`;
     }, 200);
   }
 
+  async syncLocalUploadsToSupabase() {
+    if (!isSupabaseConfigured()) return;
+    const localTracks = this.customTracks || [];
+    if (localTracks.length === 0) return;
+
+    let changed = false;
+    for (const track of localTracks) {
+      // If track has a temporary client-generated id (e.g. starts with "custom-"), migrate it to Supabase!
+      if (track.id && String(track.id).startsWith("custom-")) {
+        try {
+          const currentUserId = this.currentUser?.id || null;
+          const uploaderName = track.uploaderName || this.currentUser?.user_metadata?.full_name || "You";
+          const savedRow = await saveSongToSupabase(track, currentUserId, uploaderName);
+          if (savedRow && savedRow.id) {
+            console.log(`⚡ Migrated local track "${track.title}" to Supabase cloud:`, savedRow.id);
+            this.removeMyUploadedId(track.id);
+            track.id = savedRow.id;
+            this.saveMyUploadedId(savedRow.id);
+            changed = true;
+          }
+        } catch (err) {
+          console.warn("Could not sync local track to Supabase:", err);
+        }
+      }
+    }
+    if (changed) {
+      this.saveCurrentUserData();
+    }
+  }
+
   async loadUserData(userId = "guest") {
     try {
       const data = await fetchUserLibrary(userId);
@@ -2069,6 +2104,9 @@ END $$;`;
         } else {
           this.customTracks = localCustom;
         }
+
+        // Automatically sync any offline or local custom tracks to Supabase
+        await this.syncLocalUploadsToSupabase();
 
         // Merge custom tracks with global community catalog and default tracks
         await this.loadGlobalSongs();

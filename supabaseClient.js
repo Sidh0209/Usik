@@ -1,13 +1,16 @@
 // Usik - Supabase Client & Authentication Layer
 import { createClient } from "@supabase/supabase-js";
 
-// Check environment variables or local storage for credentials
+export const DEFAULT_SUPABASE_URL = "https://pxrafphpascbzrrydlsk.supabase.co";
+export const DEFAULT_SUPABASE_ANON_KEY = "sb_publishable_JvsHUrAZZwQRYT7xpbkkfw_ZbxzPrAY";
+
+// Check environment variables, local storage, or embedded production defaults
 const storedConfig = JSON.parse(localStorage.getItem("usik_supabase_config") || "{}");
 const envUrl = import.meta.env.VITE_SUPABASE_URL;
 const envAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
-let supabaseUrl = envUrl || storedConfig.url || "";
-let supabaseAnonKey = envAnonKey || storedConfig.anonKey || "";
+let supabaseUrl = envUrl || storedConfig.url || DEFAULT_SUPABASE_URL;
+let supabaseAnonKey = envAnonKey || storedConfig.anonKey || DEFAULT_SUPABASE_ANON_KEY;
 
 let supabase = null;
 
