@@ -19,6 +19,13 @@ import {
   DEFAULT_LIBRARY
 } from "./supabaseClient.js";
 import { detectMediaUrl, parseMediaMetadata } from "./mediaParser.js";
+import {
+  classifyTrackVibe,
+  calculateVibeSimilarity,
+  generateVibeQueue,
+  getNextVibeTrack,
+  VIBE_DEFINITIONS
+} from "./vibeEngine.js";
 
 class UsikSpotifyApp {
   constructor() {
@@ -33,6 +40,7 @@ class UsikSpotifyApp {
     this.currentView = "home"; // "home", "search", "library"
     this.isShuffle = false;
     this.repeatMode = "off"; // "off", "all", "one"
+    this.isVibeFlowActive = true;
     this.currentEnv = "cosmic";
     this.currentUser = null;
     this.authMode = "login"; // "login" | "register"
@@ -131,6 +139,10 @@ class UsikSpotifyApp {
       btnNext: document.getElementById("btn-next"),
       btnShuffle: document.getElementById("btn-shuffle"),
       btnRepeat: document.getElementById("btn-repeat"),
+      btnVibeFlow: document.getElementById("btn-vibe-flow"),
+      playerVibeBadge: document.getElementById("player-vibe-badge"),
+      vibeBadgeIcon: document.getElementById("vibe-badge-icon"),
+      vibeBadgeText: document.getElementById("vibe-badge-text"),
       currentTimeText: document.getElementById("current-time"),
       totalDurationText: document.getElementById("total-duration"),
       progressTrack: document.getElementById("progress-bar-container"),
@@ -701,6 +713,7 @@ class UsikSpotifyApp {
         <div class="col-album">${track.album}</div>
         <div class="col-genre">${track.genre}</div>
         <div class="col-duration-flex">
+          <button class="row-vibe-btn" data-vibe-id="${track.id}" title="Play Vibe Radio from this song">✨</button>
           ${track.isCustom ? `<button class="row-delete-icon" data-delete-id="${track.id}" title="Remove song">✕</button>` : ""}
           <button class="row-like-icon ${isLiked ? "liked" : ""}" data-like-id="${track.id}">
             ${isLiked ? "♥" : "♡"}
@@ -710,7 +723,7 @@ class UsikSpotifyApp {
       `;
 
       row.addEventListener("click", (e) => {
-        if (e.target.closest(".row-like-icon") || e.target.closest(".row-delete-icon")) return;
+        if (e.target.closest(".row-like-icon") || e.target.closest(".row-delete-icon") || e.target.closest(".row-vibe-btn")) return;
         this.playTrackById(track.id);
       });
 
@@ -723,6 +736,14 @@ class UsikSpotifyApp {
           } else {
             this.playTrackById(track.id);
           }
+        });
+      }
+
+      const vibeBtn = row.querySelector(`[data-vibe-id="${track.id}"]`);
+      if (vibeBtn) {
+        vibeBtn.addEventListener("click", (e) => {
+          e.stopPropagation();
+          this.startVibeRadio(track);
         });
       }
 
@@ -835,7 +856,7 @@ class UsikSpotifyApp {
     });
   }
 
-  playTrackById(trackId) {
+  playTrackById(trackId, isFromVibe = false) {
     let index = this.queue.findIndex(t => t.id === trackId);
     if (index === -1) {
       const track = this.tracks.find(t => t.id === trackId);
@@ -848,6 +869,12 @@ class UsikSpotifyApp {
     if (index !== -1) {
       this.activeTrackIndex = index;
       const track = this.queue[this.activeTrackIndex];
+
+      // If Vibe Flow is active and not continuing a vibe radio sequence, synthesize matching vibe queue
+      if (this.isVibeFlowActive && !isFromVibe) {
+        this.queue = generateVibeQueue(track, this.tracks);
+        this.activeTrackIndex = 0;
+      }
 
       if (track.type === "youtube") {
         // 1. YouTube Audio Stream Mode
@@ -898,6 +925,19 @@ class UsikSpotifyApp {
     }
   }
 
+  startVibeRadio(seedTrack) {
+    if (!seedTrack) return;
+    this.isVibeFlowActive = true;
+    if (this.dom.btnVibeFlow) this.dom.btnVibeFlow.classList.add("active");
+    const vibe = classifyTrackVibe(seedTrack);
+    this.queue = generateVibeQueue(seedTrack, this.tracks);
+    this.activeTrackIndex = 0;
+    this.playTrackById(seedTrack.id, true);
+    this.renderQueue();
+    this.showToast(`✨ Started Vibe Radio: ${vibe.icon} ${vibe.label} from "${seedTrack.title}"`);
+    this.saveCurrentUserData();
+  }
+
   updatePlayerUI() {
     const track = this.getCurrentTrack();
     if (!track) return;
@@ -912,6 +952,18 @@ class UsikSpotifyApp {
     this.dom.playerLikeBtn.innerHTML = isLiked
       ? '<svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>'
       : '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path></svg>';
+
+    // Update Vibe Badge
+    const vibe = classifyTrackVibe(track);
+    if (this.dom.vibeBadgeIcon && this.dom.vibeBadgeText) {
+      this.dom.vibeBadgeIcon.textContent = vibe.icon;
+      this.dom.vibeBadgeText.textContent = vibe.label;
+      if (this.dom.playerVibeBadge) {
+        this.dom.playerVibeBadge.style.borderColor = `${vibe.color}66`;
+        this.dom.playerVibeBadge.style.backgroundColor = `${vibe.color}22`;
+        this.dom.playerVibeBadge.title = `Current Vibe: ${vibe.label} (Click to browse)`;
+      }
+    }
 
     this.renderLyrics();
   }
@@ -959,6 +1011,15 @@ class UsikSpotifyApp {
   playNextTrack() {
     if (this.isShuffle) {
       this.activeTrackIndex = Math.floor(Math.random() * this.queue.length);
+    } else if (this.isVibeFlowActive) {
+      const current = this.getCurrentTrack();
+      if (current) this.history.push(current.id);
+      const nextVibe = getNextVibeTrack(current, this.tracks, this.history.slice(-8));
+      if (nextVibe) {
+        this.playTrackById(nextVibe.id, true);
+        return;
+      }
+      this.activeTrackIndex = (this.activeTrackIndex + 1) % this.queue.length;
     } else {
       this.activeTrackIndex = (this.activeTrackIndex + 1) % this.queue.length;
     }
@@ -999,12 +1060,13 @@ class UsikSpotifyApp {
     this.dom.queueItemsList.innerHTML = "";
     this.queue.forEach((track, idx) => {
       const isActive = idx === this.activeTrackIndex;
+      const vibe = classifyTrackVibe(track);
       const el = document.createElement("div");
       el.className = `q-row ${isActive ? "active" : ""}`;
       el.innerHTML = `
         <img src="${track.coverUrl}" alt="${track.title}" class="q-art" />
         <div class="q-meta">
-          <div class="q-title">${track.title}</div>
+          <div class="q-title">${track.title} <span style="font-size:0.75rem; opacity:0.85;" title="Vibe: ${vibe.label}">${vibe.icon}</span></div>
           <div class="q-artist">${track.artist}</div>
         </div>
         <span style="font-size:0.75rem; color:var(--text-muted);">${this.formatTime(track.duration)}</span>
@@ -1012,11 +1074,7 @@ class UsikSpotifyApp {
       el.addEventListener("click", () => {
         this.activeTrackIndex = idx;
         const selected = this.queue[this.activeTrackIndex];
-        this.audioEngine.loadTrack(selected);
-        this.setTrackTheme(selected);
-        this.updatePlayerUI();
-        this.renderTracksTable();
-        this.renderQueue();
+        this.playTrackById(selected.id, true);
       });
       this.dom.queueItemsList.appendChild(el);
     });
@@ -1134,6 +1192,42 @@ class UsikSpotifyApp {
         this.playTrackById(liked[0].id);
       }
     });
+
+    // Vibe Flow Toggle
+    if (this.dom.btnVibeFlow) {
+      this.dom.btnVibeFlow.addEventListener("click", () => {
+        this.isVibeFlowActive = !this.isVibeFlowActive;
+        this.dom.btnVibeFlow.classList.toggle("active", this.isVibeFlowActive);
+        const current = this.getCurrentTrack();
+        if (this.isVibeFlowActive && current) {
+          const vibe = classifyTrackVibe(current);
+          this.queue = generateVibeQueue(current, this.tracks);
+          this.activeTrackIndex = 0;
+          this.renderQueue();
+          this.showToast(`✨ Vibe Flow ON: Streaming ${vibe.icon} ${vibe.label}`);
+        } else {
+          this.queue = [...this.tracks];
+          this.activeTrackIndex = this.tracks.findIndex(t => t.id === current?.id);
+          this.renderQueue();
+          this.showToast("Vibe Flow OFF: Standard sequence");
+        }
+        this.saveCurrentUserData();
+      });
+    }
+
+    // Vibe Pill Badge Click (filters catalog to vibe)
+    if (this.dom.playerVibeBadge) {
+      this.dom.playerVibeBadge.addEventListener("click", () => {
+        const current = this.getCurrentTrack();
+        if (!current) return;
+        const vibe = classifyTrackVibe(current);
+        this.activeGenre = vibe.id;
+        this.renderGenrePills();
+        this.renderTracksTable();
+        this.dom.tracksTableBody.scrollIntoView({ behavior: "smooth", block: "nearest" });
+        this.showToast(`Showing all ${vibe.icon} ${vibe.label} tracks`);
+      });
+    }
 
     // Shuffle & Repeat
     this.dom.btnShuffle.addEventListener("click", () => {
@@ -1470,7 +1564,8 @@ END $$;`;
           volume: this.audioEngine.volume,
           currentEnv: this.currentEnv,
           isShuffle: this.isShuffle,
-          repeatMode: this.repeatMode
+          repeatMode: this.repeatMode,
+          isVibeFlowActive: this.isVibeFlowActive
         }
       };
       syncUserLibrary(userId, payload);
@@ -1537,6 +1632,12 @@ END $$;`;
           if (data.settings.repeatMode) {
             this.repeatMode = data.settings.repeatMode;
             this.dom.btnRepeat.classList.toggle("active", this.repeatMode !== "off");
+          }
+          if (typeof data.settings.isVibeFlowActive === "boolean") {
+            this.isVibeFlowActive = data.settings.isVibeFlowActive;
+            if (this.dom.btnVibeFlow) {
+              this.dom.btnVibeFlow.classList.toggle("active", this.isVibeFlowActive);
+            }
           }
         }
         this.updateSidebarLikedCount();

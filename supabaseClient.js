@@ -151,7 +151,8 @@ export const DEFAULT_LIBRARY = {
     volume: 0.85,
     currentEnv: "cosmic",
     isShuffle: false,
-    repeatMode: "off"
+    repeatMode: "off",
+    isVibeFlowActive: true
   }
 };
 

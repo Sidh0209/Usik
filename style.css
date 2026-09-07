@@ -1804,6 +1804,80 @@ body {
   color: var(--sp-purple-bright);
 }
 
+/* Vibe Flow Sparkle Button */
+#btn-vibe-flow.active {
+  color: #c084fc;
+  filter: drop-shadow(0 0 6px rgba(192, 132, 252, 0.8));
+  animation: vibeSparklePulse 3.5s infinite ease-in-out;
+}
+
+@keyframes vibeSparklePulse {
+  0%, 100% {
+    transform: scale(1);
+    filter: drop-shadow(0 0 4px rgba(192, 132, 252, 0.6));
+  }
+  50% {
+    transform: scale(1.18) rotate(12deg);
+    filter: drop-shadow(0 0 10px rgba(236, 72, 153, 0.9));
+  }
+}
+
+/* Vibe Pill Badge in Player Bar */
+.vibe-pill-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 9px;
+  border-radius: 999px;
+  background: rgba(168, 85, 247, 0.12);
+  border: 1px solid rgba(168, 85, 247, 0.28);
+  color: #e9d5ff;
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: all var(--trans-spring);
+  user-select: none;
+  margin-left: 4px;
+}
+
+.vibe-pill-badge:hover {
+  background: rgba(168, 85, 247, 0.25);
+  border-color: rgba(168, 85, 247, 0.5);
+  transform: translateY(-1px) scale(1.04);
+  box-shadow: 0 2px 10px rgba(168, 85, 247, 0.3);
+}
+
+.vibe-pill-badge:active {
+  transform: scale(0.95);
+}
+
+/* Track Row Vibe Radio Button */
+.row-vibe-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-subdued);
+  font-size: 0.85rem;
+  cursor: pointer;
+  padding: 3px 6px;
+  border-radius: 4px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: opacity var(--trans-fast), color var(--trans-fast), transform var(--trans-spring);
+}
+
+.table-row:hover .row-vibe-btn {
+  opacity: 1;
+}
+
+.row-vibe-btn:hover {
+  color: var(--sp-purple-bright);
+  transform: scale(1.25);
+}
+
 /* Main Play Button with tactile bounce */
 .player-main-play-btn {
   width: 36px;
