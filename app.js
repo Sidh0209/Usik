@@ -1250,9 +1250,10 @@ DROP POLICY IF EXISTS "Users can update their own songs" ON public.songs;
 DROP POLICY IF EXISTS "Users can delete their own songs" ON public.songs;
 
 CREATE POLICY "Anyone can view all songs" ON public.songs FOR SELECT USING (true);
-CREATE POLICY "Users can insert songs" ON public.songs FOR INSERT WITH CHECK (auth.uid() = user_id OR user_id IS NULL);
-CREATE POLICY "Users can update their own songs" ON public.songs FOR UPDATE USING (auth.uid() = user_id);
-CREATE POLICY "Users can delete their own songs" ON public.songs FOR DELETE USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Anyone can insert songs" ON public.songs;
+CREATE POLICY "Anyone can insert songs" ON public.songs FOR INSERT WITH CHECK (true);
+CREATE POLICY "Users can update their own songs" ON public.songs FOR UPDATE USING (auth.uid() = user_id OR user_id IS NULL);
+CREATE POLICY "Users can delete their own songs" ON public.songs FOR DELETE USING (auth.uid() = user_id OR user_id IS NULL);
 
 CREATE TABLE IF NOT EXISTS public.user_library (
     user_id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
@@ -1272,9 +1273,8 @@ DROP POLICY IF EXISTS "Users can delete their own library" ON public.user_librar
 
 CREATE POLICY "Users can manage their own library" ON public.user_library FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
 
-GRANT SELECT ON public.songs TO anon, authenticated;
-GRANT INSERT, UPDATE, DELETE ON public.songs TO authenticated;
-GRANT ALL ON public.user_library TO authenticated;`;
+GRANT ALL ON public.songs TO anon, authenticated;
+GRANT ALL ON public.user_library TO anon, authenticated;`;
         try {
           await navigator.clipboard.writeText(sql);
           this.showToast("Copied full SQL Schema to clipboard!");
@@ -1571,11 +1571,12 @@ GRANT ALL ON public.user_library TO authenticated;`;
       };
 
       // Direct insertion to dedicated Supabase 'songs' table (Universal Community pool)
-      if (this.currentUser && this.currentUser.id && this.currentUser.id !== "guest") {
+      if (isSupabaseConfigured()) {
         this.dom.btnSubmitImport.disabled = true;
         this.dom.btnSubmitImport.textContent = "Publishing to Feed...";
         try {
-          const savedRow = await saveSongToSupabase(newTrack, this.currentUser.id, uploaderName);
+          const currentUserId = this.currentUser?.id || null;
+          const savedRow = await saveSongToSupabase(newTrack, currentUserId, uploaderName);
           if (savedRow && savedRow.id) {
             newTrack.id = savedRow.id;
           }

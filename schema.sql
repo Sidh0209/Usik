@@ -43,20 +43,21 @@ CREATE POLICY "Anyone can view all songs"
     ON public.songs FOR SELECT
     USING (true);
 
--- Allow authenticated users to add songs to the global community feed
-CREATE POLICY "Users can insert songs"
+-- Allow any user (authenticated or guest) to add songs to the global community feed
+DROP POLICY IF EXISTS "Anyone can insert songs" ON public.songs;
+CREATE POLICY "Anyone can insert songs"
     ON public.songs FOR INSERT
-    WITH CHECK (auth.uid() = user_id OR user_id IS NULL);
+    WITH CHECK (true);
 
--- Allow original uploaders to update their songs
+-- Allow uploaders to update their songs
 CREATE POLICY "Users can update their own songs"
     ON public.songs FOR UPDATE
-    USING (auth.uid() = user_id);
+    USING (auth.uid() = user_id OR user_id IS NULL);
 
--- Allow original uploaders to delete their songs
+-- Allow uploaders to delete their songs
 CREATE POLICY "Users can delete their own songs"
     ON public.songs FOR DELETE
-    USING (auth.uid() = user_id);
+    USING (auth.uid() = user_id OR user_id IS NULL);
 
 -- 2. Table for User Library State & Personal Preferences
 CREATE TABLE IF NOT EXISTS public.user_library (
@@ -84,9 +85,8 @@ CREATE POLICY "Users can manage their own library"
     WITH CHECK (auth.uid() = user_id);
 
 -- 3. Grants for Supabase API access
-GRANT SELECT ON public.songs TO anon, authenticated;
-GRANT INSERT, UPDATE, DELETE ON public.songs TO authenticated;
-GRANT ALL ON public.user_library TO authenticated;
+GRANT ALL ON public.songs TO anon, authenticated;
+GRANT ALL ON public.user_library TO anon, authenticated;
 
 -- 4. Enable Realtime updates (Multi-device instant synchronization)
 DO $$

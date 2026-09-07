@@ -222,16 +222,21 @@ export async function syncUserLibrary(userId = "guest", data) {
 
 /**
  * Inserts a single song into the public.songs table in Supabase.
- * Returns the created row object (including the generated UUID id) or null if guest/offline.
+ * Returns the created row object (including the generated UUID id) or null if Supabase not configured.
  */
-export async function saveSongToSupabase(songData, userId, uploaderName = "Community") {
-  if (!isSupabaseConfigured() || !supabase || !userId || userId === "guest") {
+export async function saveSongToSupabase(songData, userId = null, uploaderName = "Community") {
+  if (!isSupabaseConfigured() || !supabase) {
+    console.warn("Supabase is not configured. Song saved to local storage only.");
     return null;
   }
 
+  // Check if userId is a valid UUID (auth.users id format)
+  const isUUID = typeof userId === "string" && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(userId);
+  const safeUserId = isUUID ? userId : null;
+
   try {
     const payload = {
-      user_id: userId,
+      user_id: safeUserId,
       uploader_name: uploaderName || "Community",
       title: songData.title || "Untitled Track",
       artist: songData.artist || "Unknown Artist",
@@ -250,14 +255,14 @@ export async function saveSongToSupabase(songData, userId, uploaderName = "Commu
       .single();
 
     if (error) {
-      console.warn("Supabase songs insert notice (check if schema.sql was run):", error.message);
+      console.error("❌ Supabase songs insert error:", error.message, error.details || error.hint || "");
       return null;
     }
 
     console.log("⚡ Song successfully saved to Supabase 'songs' table:", data.id);
     return data;
   } catch (err) {
-    console.warn("Supabase saveSongToSupabase error:", err);
+    console.error("❌ Supabase saveSongToSupabase exception:", err);
     return null;
   }
 }
