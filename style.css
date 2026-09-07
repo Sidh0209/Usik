@@ -2533,9 +2533,11 @@ body {
   transition: height 0.35s var(--macos-spring), opacity 0.2s ease;
 }
 
-.dock-iframe-container iframe {
-  width: 100%;
-  height: 100%;
+.dock-iframe-container iframe,
+.dock-iframe-container div,
+#youtube-player-mount {
+  width: 100% !important;
+  height: 100% !important;
   border: none;
   display: block;
 }

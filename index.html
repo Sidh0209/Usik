@@ -4,9 +4,10 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Usik - Music Player</title>
-  <meta name="description" content="Usik - Spotify-inspired music streaming web app with macOS smooth animations, purple aesthetic, and curated music catalog." />
   <link rel="stylesheet" href="./style.css" />
   <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23a855f7'><circle cx='12' cy='12' r='10'/><polygon points='10,8 16,12 10,16' fill='%23ffffff'/></svg>" />
+  <!-- Official YouTube IFrame Player API for bidirectional sync -->
+  <script src="https://www.youtube.com/iframe_api"></script>
 </head>
 <body class="env-cosmic">
 
@@ -519,7 +520,7 @@
       </div>
     </div>
     <div class="dock-iframe-container" id="dock-iframe-container">
-      <iframe id="youtube-stream-iframe" src="" allow="autoplay; encrypted-media; picture-in-picture" tabindex="-1"></iframe>
+      <div id="youtube-player-mount"></div>
     </div>
   </aside>
 
