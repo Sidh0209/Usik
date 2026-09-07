@@ -118,6 +118,16 @@ export class SpatialAudioEngine {
       this.callbacks.onTrackEnd();
     });
 
+    this.audioElement.addEventListener("play", () => {
+      this.isPlaying = true;
+      this.callbacks.onStateChange(true);
+    });
+
+    this.audioElement.addEventListener("pause", () => {
+      this.isPlaying = false;
+      this.callbacks.onStateChange(false);
+    });
+
     this.audioElement.addEventListener("error", (e) => {
       console.warn("Remote audio stream failed to load, switching to High-Fidelity Generative Spatial Synth fallback:", e);
       this.startSyntheticTrack();
@@ -198,7 +208,16 @@ export class SpatialAudioEngine {
   }
 
   togglePlay() {
-    if (this.isPlaying) {
+    if (this.isSynthetic) {
+      if (this.isPlaying) {
+        this.pause();
+      } else {
+        this.play();
+      }
+      return;
+    }
+
+    if (!this.audioElement.paused && this.isPlaying) {
       this.pause();
     } else {
       if (this.currentTrack) {

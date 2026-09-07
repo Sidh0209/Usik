@@ -1364,6 +1364,26 @@ body {
   animation: justAddedPulse 1.8s ease-out 3;
 }
 
+/* Card & Row Playing State (Keep play/pause button visible & responsive while playing) */
+.community-song-card.playing .comm-play-btn,
+.sp-card.playing .sp-card-play-btn {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+}
+
+.recent-card.playing .recent-play-btn {
+  opacity: 1;
+  transform: scale(1) rotate(0deg);
+}
+
+.table-row.is-playing .row-song-title {
+  color: var(--sp-purple-bright);
+}
+
+.table-row.is-playing .row-index-num {
+  color: var(--sp-purple-bright);
+}
+
 /* ==========================================================================
    APPLE MUSIC STYLE BENTO GENRE STATIONS GRID
    ========================================================================== */

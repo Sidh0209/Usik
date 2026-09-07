@@ -496,18 +496,33 @@ class UsikSpotifyApp {
 
   renderRecentsGrid() {
     this.dom.recentsGrid.innerHTML = "";
+    const current = this.getCurrentTrack();
     const recents = this.tracks.slice(0, 6);
     recents.forEach((track) => {
       const card = document.createElement("div");
       card.className = "recent-card";
+      card.dataset.trackId = track.id;
+      const isCurrent = current && current.id === track.id;
+      const isPlaying = isCurrent && this.isCurrentlyPlaying();
+      if (isPlaying) card.classList.add("playing");
+
       card.innerHTML = `
         <img src="${track.coverUrl}" alt="${track.title}" class="recent-art" loading="lazy" />
         <span class="recent-title">${track.title}</span>
-        <button class="recent-play-btn" title="Play">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="#000000"><polygon points="6 4 20 12 6 20 6 4"></polygon></svg>
+        <button class="recent-play-btn" title="${isPlaying ? "Pause" : "Play"}">
+          ${isPlaying 
+            ? `<svg width="20" height="20" viewBox="0 0 24 24" fill="#000000"><rect x="6" y="4" width="4" height="16"></rect><rect x="14" y="4" width="4" height="16"></rect></svg>`
+            : `<svg width="20" height="20" viewBox="0 0 24 24" fill="#000000"><polygon points="6 4 20 12 6 20 6 4"></polygon></svg>`}
         </button>
       `;
       card.addEventListener("click", () => this.playTrackById(track.id));
+      const playBtn = card.querySelector(".recent-play-btn");
+      if (playBtn) {
+        playBtn.addEventListener("click", (e) => {
+          e.stopPropagation();
+          this.playTrackById(track.id);
+        });
+      }
       this.dom.recentsGrid.appendChild(card);
     });
   }
@@ -515,20 +530,36 @@ class UsikSpotifyApp {
   renderFeaturedCarousel() {
     if (!this.dom.featuredCarousel) return;
     this.dom.featuredCarousel.innerHTML = "";
+    const current = this.getCurrentTrack();
+
     this.tracks.forEach((track) => {
       const card = document.createElement("div");
       card.className = "sp-card";
+      card.dataset.trackId = track.id;
+      const isCurrent = current && current.id === track.id;
+      const isPlaying = isCurrent && this.isCurrentlyPlaying();
+      if (isPlaying) card.classList.add("playing");
+
       card.innerHTML = `
         <div class="sp-card-art-box">
           <img src="${track.coverUrl}" alt="${track.title}" class="sp-card-art-img" loading="lazy" />
-          <button class="sp-card-play-btn" title="Play">
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="#000000"><polygon points="6 4 20 12 6 20 6 4"></polygon></svg>
+          <button class="sp-card-play-btn" title="${isPlaying ? "Pause" : "Play"}">
+            ${isPlaying
+              ? `<svg width="22" height="22" viewBox="0 0 24 24" fill="#000000"><rect x="6" y="4" width="4" height="16"></rect><rect x="14" y="4" width="4" height="16"></rect></svg>`
+              : `<svg width="22" height="22" viewBox="0 0 24 24" fill="#000000"><polygon points="6 4 20 12 6 20 6 4"></polygon></svg>`}
           </button>
         </div>
         <div class="sp-card-title">${track.title}</div>
         <div class="sp-card-desc">${track.artist}</div>
       `;
       card.addEventListener("click", () => this.playTrackById(track.id));
+      const playBtn = card.querySelector(".sp-card-play-btn");
+      if (playBtn) {
+        playBtn.addEventListener("click", (e) => {
+          e.stopPropagation();
+          this.playTrackById(track.id);
+        });
+      }
       this.dom.featuredCarousel.appendChild(card);
     });
   }
@@ -629,18 +660,26 @@ class UsikSpotifyApp {
 
     this.dom.sectionUserUploads.style.display = "block";
     this.dom.userUploadsShelf.innerHTML = "";
+    const current = this.getCurrentTrack();
 
     uploads.forEach((track) => {
       const card = document.createElement("div");
       card.className = "community-song-card";
       card.id = `user-upload-card-${track.id}`;
+      card.dataset.trackId = track.id;
+      const isCurrent = current && current.id === track.id;
+      const isPlaying = isCurrent && this.isCurrentlyPlaying();
+      if (isPlaying) card.classList.add("playing");
+
       card.innerHTML = `
         <div class="comm-art-box">
           <img src="${track.coverUrl}" alt="${track.title}" class="comm-art-img" loading="lazy" />
           <span class="comm-uploader-tag" style="background:rgba(168,85,247,0.85); color:#ffffff; font-weight:700;">👤 You</span>
           <span class="comm-provider-badge">${track.type === "youtube" ? "YT" : "AUDIO"}</span>
-          <button class="comm-play-btn" title="Play">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="#000000"><polygon points="6 4 20 12 6 20 6 4"></polygon></svg>
+          <button class="comm-play-btn" title="${isPlaying ? "Pause" : "Play"}">
+            ${isPlaying
+              ? `<svg width="18" height="18" viewBox="0 0 24 24" fill="#000000"><rect x="6" y="4" width="4" height="16"></rect><rect x="14" y="4" width="4" height="16"></rect></svg>`
+              : `<svg width="18" height="18" viewBox="0 0 24 24" fill="#000000"><polygon points="6 4 20 12 6 20 6 4"></polygon></svg>`}
           </button>
           <button class="comm-delete-btn" title="Remove upload" data-delete-upload-id="${track.id}">✕</button>
         </div>
@@ -652,6 +691,14 @@ class UsikSpotifyApp {
         if (e.target.closest(".comm-delete-btn")) return;
         this.playTrackById(track.id);
       });
+
+      const playBtn = card.querySelector(".comm-play-btn");
+      if (playBtn) {
+        playBtn.addEventListener("click", (e) => {
+          e.stopPropagation();
+          this.playTrackById(track.id);
+        });
+      }
 
       const delBtn = card.querySelector(`[data-delete-upload-id="${track.id}"]`);
       if (delBtn) {
@@ -688,22 +735,38 @@ class UsikSpotifyApp {
       return;
     }
 
+    const current = this.getCurrentTrack();
+
     commList.forEach((track) => {
       const card = document.createElement("div");
       card.className = "community-song-card";
+      card.dataset.trackId = track.id;
+      const isCurrent = current && current.id === track.id;
+      const isPlaying = isCurrent && this.isCurrentlyPlaying();
+      if (isPlaying) card.classList.add("playing");
+
       card.innerHTML = `
         <div class="comm-art-box">
           <img src="${track.coverUrl}" alt="${track.title}" class="comm-art-img" loading="lazy" />
           <span class="comm-uploader-tag" title="Added by ${track.uploaderName || 'Community'}">👤 ${track.uploaderName || 'Community'}</span>
           <span class="comm-provider-badge">${track.type === "youtube" ? "YT" : "AUDIO"}</span>
-          <button class="comm-play-btn" title="Play">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="#000000"><polygon points="6 4 20 12 6 20 6 4"></polygon></svg>
+          <button class="comm-play-btn" title="${isPlaying ? "Pause" : "Play"}">
+            ${isPlaying
+              ? `<svg width="18" height="18" viewBox="0 0 24 24" fill="#000000"><rect x="6" y="4" width="4" height="16"></rect><rect x="14" y="4" width="4" height="16"></rect></svg>`
+              : `<svg width="18" height="18" viewBox="0 0 24 24" fill="#000000"><polygon points="6 4 20 12 6 20 6 4"></polygon></svg>`}
           </button>
         </div>
         <div class="comm-title" title="${track.title}">${track.title}</div>
         <div class="comm-artist" title="${track.artist}">${track.artist}</div>
       `;
       card.addEventListener("click", () => this.playTrackById(track.id));
+      const playBtn = card.querySelector(".comm-play-btn");
+      if (playBtn) {
+        playBtn.addEventListener("click", (e) => {
+          e.stopPropagation();
+          this.playTrackById(track.id);
+        });
+      }
       this.dom.communityShelf.appendChild(card);
     });
   }
@@ -874,14 +937,16 @@ class UsikSpotifyApp {
 
     list.forEach((track, i) => {
       const isCurrent = current && current.id === track.id;
+      const isPlaying = isCurrent && this.isCurrentlyPlaying();
       const isLiked = this.likedTrackIds.has(track.id);
 
       const row = document.createElement("div");
-      row.className = `table-row ${isCurrent ? "active" : ""}`;
+      row.className = `table-row ${isCurrent ? "active" : ""} ${isPlaying ? "is-playing" : ""}`;
+      row.dataset.trackId = track.id;
       row.innerHTML = `
         <div class="col-num">
-          <span class="row-index-num">${isCurrent && (this.audioEngine.isPlaying || this.isYouTubePlaying) ? "🔊" : i + 1}</span>
-          <button class="row-play-btn" title="Play">▶</button>
+          <span class="row-index-num" data-index="${i + 1}">${isPlaying ? "🔊" : i + 1}</span>
+          <button class="row-play-btn" title="${isPlaying ? "Pause" : "Play"}">${isPlaying ? "❚❚" : "▶"}</button>
         </div>
         <div class="col-title-flex">
           <img src="${track.coverUrl}" alt="${track.title}" class="col-art-thumb" loading="lazy" />
@@ -903,7 +968,7 @@ class UsikSpotifyApp {
       `;
 
       row.addEventListener("click", (e) => {
-        if (e.target.closest(".row-like-icon") || e.target.closest(".row-delete-icon") || e.target.closest(".row-vibe-btn")) return;
+        if (e.target.closest(".row-like-icon") || e.target.closest(".row-delete-icon") || e.target.closest(".row-vibe-btn") || e.target.closest(".row-play-btn")) return;
         this.playTrackById(track.id);
       });
 
@@ -911,11 +976,7 @@ class UsikSpotifyApp {
       if (rowPlayBtn) {
         rowPlayBtn.addEventListener("click", (e) => {
           e.stopPropagation();
-          if (isCurrent) {
-            this.dom.btnPlayPause.click();
-          } else {
-            this.playTrackById(track.id);
-          }
+          this.playTrackById(track.id);
         });
       }
 
@@ -1030,14 +1091,16 @@ class UsikSpotifyApp {
 
     tracks.forEach((track, i) => {
       const isCurrent = current && current.id === track.id;
+      const isPlaying = isCurrent && this.isCurrentlyPlaying();
       const isLiked = this.likedTrackIds.has(track.id);
 
       const row = document.createElement("div");
-      row.className = `table-row ${isCurrent ? "active" : ""}`;
+      row.className = `table-row ${isCurrent ? "active" : ""} ${isPlaying ? "is-playing" : ""}`;
+      row.dataset.trackId = track.id;
       row.innerHTML = `
         <div class="col-num">
-          <span class="row-index-num">${i + 1}</span>
-          <button class="row-play-btn">▶</button>
+          <span class="row-index-num" data-index="${i + 1}">${isPlaying ? "🔊" : i + 1}</span>
+          <button class="row-play-btn" title="${isPlaying ? "Pause" : "Play"}">${isPlaying ? "❚❚" : "▶"}</button>
         </div>
         <div class="col-title-flex">
           <img src="${track.coverUrl}" alt="${track.title}" class="col-art-thumb" />
@@ -1057,9 +1120,16 @@ class UsikSpotifyApp {
         </div>
       `;
       row.addEventListener("click", (e) => {
-        if (e.target.closest(".row-like-icon") || e.target.closest(".row-delete-icon")) return;
+        if (e.target.closest(".row-like-icon") || e.target.closest(".row-delete-icon") || e.target.closest(".row-play-btn")) return;
         this.playTrackById(track.id);
       });
+      const rowPlayBtn = row.querySelector(".row-play-btn");
+      if (rowPlayBtn) {
+        rowPlayBtn.addEventListener("click", (e) => {
+          e.stopPropagation();
+          this.playTrackById(track.id);
+        });
+      }
       const likeBtn = row.querySelector(`[data-like-id="${track.id}"]`);
       if (likeBtn) {
         likeBtn.addEventListener("click", (e) => {
@@ -1081,7 +1151,80 @@ class UsikSpotifyApp {
     });
   }
 
+  isCurrentlyPlaying() {
+    const track = this.getCurrentTrack();
+    if (!track) return false;
+    if (track.type === "youtube") {
+      if (this.ytPlayer && typeof this.ytPlayer.getPlayerState === "function") {
+        const s = this.ytPlayer.getPlayerState();
+        if (s === 1 || s === 3) return true; // PLAYING or BUFFERING
+        if (s === 2 || s === 0) return false; // PAUSED or ENDED
+      }
+      return !!this.isYouTubePlaying;
+    }
+    return !this.audioEngine.audioElement.paused && !!this.audioEngine.isPlaying;
+  }
+
+  togglePlayPause() {
+    const track = this.getCurrentTrack();
+    if (!track) return;
+
+    if (track.type === "youtube") {
+      if (!this.ytPlayer || !this.ytPlayerReady) {
+        this.playTrackById(track.id);
+        return;
+      }
+
+      let isYtActive = this.isYouTubePlaying;
+      if (typeof this.ytPlayer.getPlayerState === "function") {
+        const s = this.ytPlayer.getPlayerState();
+        isYtActive = (s === 1 || s === 3);
+      }
+
+      if (isYtActive) {
+        try {
+          this.ytPlayer.pauseVideo();
+        } catch (e) {
+          console.warn("YouTube pause error:", e);
+        }
+        this.isYouTubePlaying = false;
+        this.updatePlayStateUI(false);
+      } else {
+        // Pause standard audio first
+        this.audioEngine.pause();
+        try {
+          this.ytPlayer.playVideo();
+        } catch (e) {
+          console.warn("YouTube play error, reloading video:", e);
+          this.playTrackById(track.id);
+        }
+        this.isYouTubePlaying = true;
+        this.updatePlayStateUI(true);
+      }
+    } else {
+      // Direct audio (.mp3 / stream)
+      if (this.ytPlayer && typeof this.ytPlayer.pauseVideo === "function") {
+        try {
+          this.ytPlayer.pauseVideo();
+        } catch (e) {}
+      }
+      this.isYouTubePlaying = false;
+
+      if (!this.audioEngine.currentTrack || this.audioEngine.currentTrack.id !== track.id) {
+        this.playTrackById(track.id);
+      } else {
+        this.audioEngine.togglePlay();
+      }
+    }
+  }
+
   playTrackById(trackId, isFromVibe = false) {
+    const current = this.getCurrentTrack();
+    if (current && current.id === trackId && !isFromVibe) {
+      this.togglePlayPause();
+      return;
+    }
+
     let index = this.queue.findIndex(t => t.id === trackId);
     if (index === -1) {
       const track = this.tracks.find(t => t.id === trackId);
@@ -1194,12 +1337,70 @@ class UsikSpotifyApp {
   }
 
   updatePlayStateUI(isPlaying) {
-    if (isPlaying) {
-      this.dom.playPauseIcon.innerHTML = '<rect x="6" y="4" width="4" height="16"></rect><rect x="14" y="4" width="4" height="16"></rect>';
-    } else {
-      this.dom.playPauseIcon.innerHTML = '<polygon points="6 4 20 12 6 20 6 4"></polygon>';
+    const playing = typeof isPlaying === "boolean" ? isPlaying : this.isCurrentlyPlaying();
+    const current = this.getCurrentTrack();
+
+    // 1. Bottom Main Play/Pause Button
+    if (this.dom.btnPlayPause) {
+      this.dom.btnPlayPause.title = playing ? "Pause (Space)" : "Play (Space)";
+      this.dom.btnPlayPause.setAttribute("aria-label", playing ? "Pause" : "Play");
     }
-    this.renderTracksTable();
+    if (this.dom.playPauseIcon) {
+      this.dom.playPauseIcon.innerHTML = playing
+        ? '<rect x="6" y="4" width="4" height="16"></rect><rect x="14" y="4" width="4" height="16"></rect>'
+        : '<polygon points="6 4 20 12 6 20 6 4"></polygon>';
+    }
+
+    // 2. Library Hero Play/Pause Button
+    if (this.dom.btnPlaylistPlay) {
+      this.dom.btnPlaylistPlay.title = playing ? "Pause Playlist" : "Play Playlist";
+      this.dom.btnPlaylistPlay.innerHTML = playing
+        ? '<svg width="24" height="24" viewBox="0 0 24 24" fill="#000000"><rect x="6" y="4" width="4" height="16"></rect><rect x="14" y="4" width="4" height="16"></rect></svg>'
+        : '<svg width="24" height="24" viewBox="0 0 24 24" fill="#000000"><polygon points="6 4 20 12 6 20 6 4"></polygon></svg>';
+    }
+
+    // 3. Update Table Rows (Catalog table and Library table)
+    document.querySelectorAll(".table-row").forEach((row) => {
+      const isRowCurrent = current && row.dataset.trackId === current.id;
+      const playBtn = row.querySelector(".row-play-btn");
+      const indexNum = row.querySelector(".row-index-num");
+
+      if (isRowCurrent) {
+        row.classList.add("active");
+        row.classList.toggle("is-playing", playing);
+        if (playBtn) {
+          playBtn.textContent = playing ? "❚❚" : "▶";
+          playBtn.title = playing ? "Pause" : "Play";
+        }
+        if (indexNum) {
+          indexNum.textContent = playing ? "🔊" : (indexNum.dataset.index || "1");
+        }
+      } else {
+        row.classList.remove("active", "is-playing");
+        if (playBtn) {
+          playBtn.textContent = "▶";
+          playBtn.title = "Play";
+        }
+        if (indexNum && indexNum.dataset.index) {
+          indexNum.textContent = indexNum.dataset.index;
+        }
+      }
+    });
+
+    // 4. Update Cards across Home & Shelves
+    document.querySelectorAll(".community-song-card, .sp-card, .recent-card").forEach((card) => {
+      const isCardCurrent = current && card.dataset.trackId === current.id;
+      card.classList.toggle("is-active-track", isCardCurrent);
+      card.classList.toggle("playing", isCardCurrent && playing);
+
+      const btn = card.querySelector(".comm-play-btn, .sp-card-play-btn, .recent-play-btn");
+      if (btn) {
+        btn.title = (isCardCurrent && playing) ? "Pause" : "Play";
+        btn.innerHTML = (isCardCurrent && playing)
+          ? `<svg width="18" height="18" viewBox="0 0 24 24" fill="#000000"><rect x="6" y="4" width="4" height="16"></rect><rect x="14" y="4" width="4" height="16"></rect></svg>`
+          : `<svg width="18" height="18" viewBox="0 0 24 24" fill="#000000"><polygon points="6 4 20 12 6 20 6 4"></polygon></svg>`;
+      }
+    });
   }
 
   updateProgress(currentTime, duration) {
@@ -1417,26 +1618,7 @@ class UsikSpotifyApp {
 
     // Player Controls
     this.dom.btnPlayPause.addEventListener("click", () => {
-      const track = this.getCurrentTrack();
-      if (!track) return;
-
-      if (track.type === "youtube") {
-        if (!this.ytPlayer || !this.ytPlayerReady) {
-          this.playTrackById(track.id);
-          return;
-        }
-        if (this.isYouTubePlaying) {
-          this.ytPlayer.pauseVideo();
-        } else {
-          this.ytPlayer.playVideo();
-        }
-      } else {
-        if (!this.audioEngine.currentTrack) {
-          this.playTrackById(track.id);
-        } else {
-          this.audioEngine.togglePlay();
-        }
-      }
+      this.togglePlayPause();
     });
 
     this.dom.btnNext.addEventListener("click", () => this.playNextTrack());
@@ -1457,7 +1639,13 @@ class UsikSpotifyApp {
       } else {
         playlistTracks = this.tracks;
       }
-      if (playlistTracks.length > 0) {
+      if (playlistTracks.length === 0) return;
+
+      const current = this.getCurrentTrack();
+      const isCurrentInPlaylist = current && playlistTracks.some(t => t.id === current.id);
+      if (isCurrentInPlaylist) {
+        this.togglePlayPause();
+      } else {
         this.queue = [...playlistTracks];
         this.playTrackById(playlistTracks[0].id);
       }
@@ -2268,7 +2456,7 @@ END $$;`;
       switch (e.code) {
         case "Space":
           e.preventDefault();
-          this.dom.btnPlayPause.click();
+          this.togglePlayPause();
           break;
         case "ArrowRight":
           e.preventDefault();
