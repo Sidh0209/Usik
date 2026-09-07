@@ -50,6 +50,43 @@ export const VIBE_DEFINITIONS = {
       "echoes", "drifting", "lullaby", "voyage"
     ]
   },
+  romantic: {
+    id: "romantic",
+    label: "Romance & Soul",
+    icon: "💖",
+    color: "#ec4899",
+    secondaryColor: "#f43f5e",
+    keywords: [
+      "romantic", "love", "heart", "dil", "pyar", "ishq", "mohabbaat", "channa",
+      "tum hi ho", "kesariya", "perfect", "someone like you", "lovely", "soul",
+      "ballad", "sweetheart", "darling", "aashiqui", "hawayein", "raataan"
+    ]
+  },
+  bollywood: {
+    id: "bollywood",
+    label: "Bollywood & Desi",
+    icon: "🪕",
+    color: "#f59e0b",
+    secondaryColor: "#ec4899",
+    keywords: [
+      "bollywood", "hindi", "desi", "arijit", "pritam", "rahman", "atif", "sonu",
+      "shreya", "badshah", "kesariya", "kabira", "ghungroo", "gerua", "malhari",
+      "dilwale", "pathaan", "rrr", "rockstar", "sufi", "qawwali", "pasoori"
+    ]
+  },
+  hollywood: {
+    id: "hollywood",
+    label: "Hollywood & Pop",
+    icon: "🎬",
+    color: "#6366f1",
+    secondaryColor: "#a855f7",
+    keywords: [
+      "hollywood", "pop", "the weeknd", "ed sheeran", "dua lipa", "billie eilish",
+      "coldplay", "imagine dragons", "onerepublic", "post malone", "bruno mars",
+      "avicii", "alan walker", "eminem", "taylor swift", "queen", "hans zimmer",
+      "starboy", "blinding lights", "believer", "interstellar", "chart"
+    ]
+  },
   acoustic: {
     id: "acoustic",
     label: "Warm Acoustic & Indie",
@@ -58,7 +95,7 @@ export const VIBE_DEFINITIONS = {
     secondaryColor: "#ef4444",
     keywords: [
       "acoustic", "guitar", "autumn", "sunset", "whispers", "organic", "warm",
-      "solitude", "strings", "indie", "folk", "unplugged", "ballad", "vocal"
+      "solitude", "strings", "indie", "folk", "unplugged", "ballad", "vocal", "kabira"
     ]
   }
 };

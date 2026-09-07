@@ -776,12 +776,12 @@ class UsikSpotifyApp {
     this.dom.bentoGenresGrid.innerHTML = "";
 
     const stations = [
-      { id: "Relax", name: "Lo-Fi Beats", sub: "Chillout & Study", bg: "linear-gradient(135deg, #10b981 0%, #06b6d4 100%)", icon: "🍵" },
-      { id: "Energy", name: "Synthwave", sub: "Retro Cyber Drive", bg: "linear-gradient(135deg, #ec4899 0%, #8b5cf6 100%)", icon: "🌴" },
-      { id: "Focus", name: "Cyberpunk", sub: "Neon High Velocity", bg: "linear-gradient(135deg, #f43f5e 0%, #fb923c 100%)", icon: "⚡" },
-      { id: "Ambient", name: "Deep Ambient", sub: "Cosmic Drift & Zen", bg: "linear-gradient(135deg, #6366f1 0%, #3b82f6 100%)", icon: "🌌" },
-      { id: "Acoustic", name: "Acoustic Sunset", sub: "Organic & Warm", bg: "linear-gradient(135deg, #f59e0b 0%, #ef4444 100%)", icon: "🎸" },
-      { id: "HipHop", name: "Night Lo-Fi", sub: "Tokyo Midnight", bg: "linear-gradient(135deg, #8b5cf6 0%, #ec4899 100%)", icon: "🔥" }
+      { id: "Bollywood", name: "Bollywood Anthems", sub: "Arijit, Rahman & Desi Hits", bg: "linear-gradient(135deg, #f59e0b 0%, #ec4899 100%)", icon: "🪕" },
+      { id: "Hollywood", name: "Hollywood & Pop", sub: "Global Chartbusters", bg: "linear-gradient(135deg, #6366f1 0%, #a855f7 100%)", icon: "🎬" },
+      { id: "Romantic", name: "Romance & Soul", sub: "Heartfelt Love Melodies", bg: "linear-gradient(135deg, #ec4899 0%, #f43f5e 100%)", icon: "💖" },
+      { id: "Energy", name: "High Voltage", sub: "Dance, Rock & Synth", bg: "linear-gradient(135deg, #ef4444 0%, #f59e0b 100%)", icon: "⚡" },
+      { id: "Relax", name: "Lo-Fi & Chill", sub: "Mellow Beats & Study", bg: "linear-gradient(135deg, #10b981 0%, #06b6d4 100%)", icon: "🍵" },
+      { id: "Focus", name: "Deep Focus", sub: "Cyberpunk & Soundtracks", bg: "linear-gradient(135deg, #8b5cf6 0%, #3b82f6 100%)", icon: "🧠" }
     ];
 
     stations.forEach((station) => {
@@ -853,7 +853,9 @@ class UsikSpotifyApp {
 
         // 3. Curated built-in catalog
         for (const t of TRACKS_DATA) {
-          if (!seen.has(t.id)) {
+          if (!seen.has(t.id) && (!t.audioUrl || !seen.has(t.audioUrl))) {
+            seen.add(t.id);
+            if (t.audioUrl) seen.add(t.audioUrl);
             merged.push(t);
           }
         }
