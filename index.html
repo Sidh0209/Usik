@@ -60,20 +60,32 @@
 
         <div class="lib-chips-row">
           <button class="lib-filter-pill active" id="pill-all-lib">Playlists</button>
-          <button class="lib-filter-pill" id="pill-liked-lib">Liked Songs</button>
+          <button class="lib-filter-pill" id="pill-uploads-lib">Your Uploads</button>
+          <button class="lib-filter-pill" id="pill-liked-lib">Liked</button>
           <button class="lib-filter-pill accent" id="pill-import-lib">+ Add Song</button>
         </div>
 
         <!-- Library Items List -->
         <div class="library-items-list" id="library-list-container">
           <!-- Liked Songs Quick Tile -->
-          <div class="lib-item-card active" id="lib-item-liked">
+          <div class="lib-item-card" id="lib-item-liked">
             <div class="liked-songs-gradient-icon">
               <svg width="18" height="18" viewBox="0 0 24 24" fill="#ffffff"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>
             </div>
             <div class="lib-meta">
               <span class="lib-title">Liked Songs</span>
               <span class="lib-sub" id="sidebar-liked-count">Playlist • 0 songs</span>
+            </div>
+          </div>
+
+          <!-- Your Uploads Quick Tile -->
+          <div class="lib-item-card" id="lib-item-uploads">
+            <div class="liked-songs-gradient-icon" style="background: linear-gradient(135deg, #a855f7 0%, #3b82f6 100%);">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+            </div>
+            <div class="lib-meta">
+              <span class="lib-title">Your Uploads</span>
+              <span class="lib-sub" id="sidebar-uploads-count">0 songs</span>
             </div>
           </div>
 
@@ -167,6 +179,25 @@
 
           <!-- Mood Filter Row -->
           <div class="genre-pills-row" id="genre-pills-container"></div>
+
+          <!-- Section: Your Uploads & Imports (Prominent shelf for user's uploaded songs) -->
+          <div class="content-section" id="section-user-uploads" style="display: none;">
+            <div class="section-title-row">
+              <div class="section-title-badge-group">
+                <h3 class="section-title">Your Uploads</h3>
+                <span class="user-uploads-pill" id="user-uploads-badge">
+                  <span>⚡</span> YOUR SONGS
+                </span>
+              </div>
+              <button class="btn-ghost-sm" id="btn-quick-import-my-shelf">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+                + Upload Song
+              </button>
+            </div>
+            <div class="community-shelf-scroll" id="user-uploads-shelf-container">
+              <!-- Dynamically populated cards with user's uploaded songs -->
+            </div>
+          </div>
 
           <!-- Section: Live Community Drops (Global User Import Feed) -->
           <div class="content-section" id="section-community-drops">

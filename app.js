@@ -72,6 +72,7 @@ class UsikSpotifyApp {
     this.renderEnvironmentMenu();
     this.renderGenrePills();
     this.renderRecentsGrid();
+    this.renderUserUploadsShelf();
     this.renderCommunityShelf();
     this.renderBentoGrid();
     this.renderFeaturedCarousel();
@@ -82,6 +83,7 @@ class UsikSpotifyApp {
     this.bindKeyboardShortcuts();
     this.updatePlayerUI();
     this.updateSidebarLikedCount();
+    this.updateSidebarUploadsCount();
     this.loadGlobalSongs();
     this.initRealtimeFeed();
   }
@@ -103,8 +105,14 @@ class UsikSpotifyApp {
       btnNavHome: document.getElementById("btn-nav-home"),
       btnNavSearch: document.getElementById("btn-nav-search"),
       libItemLiked: document.getElementById("lib-item-liked"),
+      libItemUploads: document.getElementById("lib-item-uploads"),
+      pillAllLib: document.getElementById("pill-all-lib"),
+      pillUploadsLib: document.getElementById("pill-uploads-lib"),
+      pillLikedLib: document.getElementById("pill-liked-lib"),
+      pillImportLib: document.getElementById("pill-import-lib"),
       btnAddPlaylist: document.getElementById("btn-add-playlist"),
       sidebarLikedCount: document.getElementById("sidebar-liked-count"),
+      sidebarUploadsCount: document.getElementById("sidebar-uploads-count"),
       customPlaylistsContainer: document.getElementById("custom-playlists-container"),
 
       // Pages
@@ -114,6 +122,9 @@ class UsikSpotifyApp {
       // Home Components
       recentsGrid: document.getElementById("recents-grid-container"),
       genrePills: document.getElementById("genre-pills-container"),
+      sectionUserUploads: document.getElementById("section-user-uploads"),
+      userUploadsShelf: document.getElementById("user-uploads-shelf-container"),
+      btnQuickImportMyShelf: document.getElementById("btn-quick-import-my-shelf"),
       communityShelf: document.getElementById("community-shelf-container"),
       bentoGenresGrid: document.getElementById("bento-genres-grid"),
       btnQuickImportShelf: document.getElementById("btn-quick-import-shelf"),
@@ -522,6 +533,140 @@ class UsikSpotifyApp {
     });
   }
 
+  getMyUploadedIds() {
+    try {
+      const raw = localStorage.getItem("usik_my_uploaded_ids");
+      return raw ? new Set(JSON.parse(raw)) : new Set();
+    } catch {
+      return new Set();
+    }
+  }
+
+  saveMyUploadedId(trackId) {
+    if (!trackId) return;
+    try {
+      const set = this.getMyUploadedIds();
+      set.add(trackId);
+      localStorage.setItem("usik_my_uploaded_ids", JSON.stringify(Array.from(set)));
+    } catch (e) {
+      console.warn("Notice: could not save uploaded ID:", e);
+    }
+  }
+
+  removeMyUploadedId(trackId) {
+    if (!trackId) return;
+    try {
+      const set = this.getMyUploadedIds();
+      set.delete(trackId);
+      localStorage.setItem("usik_my_uploaded_ids", JSON.stringify(Array.from(set)));
+    } catch (e) {
+      console.warn("Notice: could not remove uploaded ID:", e);
+    }
+  }
+
+  isUserUpload(track) {
+    if (!track) return false;
+    const myIds = this.getMyUploadedIds();
+    if (myIds.has(track.id)) return true;
+    if (track.isCustom) return true;
+    if (this.currentUser && track.userId && track.userId === this.currentUser.id) return true;
+    if (track.uploaderName === "You") return true;
+    const currentName = this.currentUser?.user_metadata?.full_name || this.currentUser?.email?.split("@")[0];
+    if (currentName && track.uploaderName && track.uploaderName.toLowerCase() === currentName.toLowerCase()) return true;
+    return false;
+  }
+
+  getUserUploads() {
+    const seen = new Set();
+    const uploads = [];
+
+    const addIfValid = (t) => {
+      if (!t || !t.id || seen.has(t.id)) return;
+      if (t.audioUrl && seen.has(t.audioUrl)) return;
+      seen.add(t.id);
+      if (t.audioUrl) seen.add(t.audioUrl);
+      uploads.push(t);
+    };
+
+    // 1. Check customTracks (user's imported tracks in current session / saved locally)
+    for (const t of (this.customTracks || [])) {
+      addIfValid(t);
+    }
+
+    // 2. Check tracks
+    for (const t of (this.tracks || [])) {
+      if (this.isUserUpload(t)) {
+        addIfValid(t);
+      }
+    }
+
+    // 3. Check communityTracks
+    for (const t of (this.communityTracks || [])) {
+      if (this.isUserUpload(t)) {
+        addIfValid(t);
+      }
+    }
+
+    return uploads;
+  }
+
+  updateSidebarUploadsCount(count) {
+    const num = typeof count === "number" ? count : this.getUserUploads().length;
+    if (this.dom.sidebarUploadsCount) {
+      this.dom.sidebarUploadsCount.textContent = `${num} song${num === 1 ? "" : "s"}`;
+    }
+  }
+
+  renderUserUploadsShelf() {
+    if (!this.dom.userUploadsShelf || !this.dom.sectionUserUploads) return;
+    const uploads = this.getUserUploads();
+    this.updateSidebarUploadsCount(uploads.length);
+
+    if (uploads.length === 0) {
+      this.dom.sectionUserUploads.style.display = "none";
+      return;
+    }
+
+    this.dom.sectionUserUploads.style.display = "block";
+    this.dom.userUploadsShelf.innerHTML = "";
+
+    uploads.forEach((track) => {
+      const card = document.createElement("div");
+      card.className = "community-song-card";
+      card.id = `user-upload-card-${track.id}`;
+      card.innerHTML = `
+        <div class="comm-art-box">
+          <img src="${track.coverUrl}" alt="${track.title}" class="comm-art-img" loading="lazy" />
+          <span class="comm-uploader-tag" style="background:rgba(168,85,247,0.85); color:#ffffff; font-weight:700;">👤 You</span>
+          <span class="comm-provider-badge">${track.type === "youtube" ? "YT" : "AUDIO"}</span>
+          <button class="comm-play-btn" title="Play">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="#000000"><polygon points="6 4 20 12 6 20 6 4"></polygon></svg>
+          </button>
+          <button class="comm-delete-btn" title="Remove upload" data-delete-upload-id="${track.id}">✕</button>
+        </div>
+        <div class="comm-title" title="${track.title}">${track.title}</div>
+        <div class="comm-artist" title="${track.artist}">${track.artist}</div>
+      `;
+
+      card.addEventListener("click", (e) => {
+        if (e.target.closest(".comm-delete-btn")) return;
+        this.playTrackById(track.id);
+      });
+
+      const delBtn = card.querySelector(`[data-delete-upload-id="${track.id}"]`);
+      if (delBtn) {
+        delBtn.addEventListener("click", async (e) => {
+          e.stopPropagation();
+          if (confirm(`Remove "${track.title}" from your uploads?`)) {
+            await this.removeCustomTrack(track.id);
+          }
+        });
+      }
+
+      this.dom.userUploadsShelf.appendChild(card);
+    });
+  }
+
   renderCommunityShelf() {
     if (!this.dom.communityShelf) return;
     this.dom.communityShelf.innerHTML = "";
@@ -600,6 +745,23 @@ class UsikSpotifyApp {
     try {
       const publicSongs = await fetchAllPublicSongs();
       if (Array.isArray(publicSongs) && publicSongs.length > 0) {
+        const myIds = this.getMyUploadedIds();
+
+        // Enrich vibes and ensure user uploads retain proper attribution
+        publicSongs.forEach(s => {
+          if (!s.mood) {
+            const v = classifyTrackVibe(s);
+            s.mood = v.id.charAt(0).toUpperCase() + v.id.slice(1);
+            if (!s.genre || s.genre === "Community Drop") {
+              s.genre = v.label;
+            }
+          }
+          if (myIds.has(s.id) || (this.currentUser && s.userId && s.userId === this.currentUser.id)) {
+            s.isCustom = true;
+            s.uploaderName = "You";
+          }
+        });
+
         this.communityTracks = publicSongs;
 
         const seen = new Set();
@@ -630,10 +792,12 @@ class UsikSpotifyApp {
 
         this.tracks = merged;
         this.queue = [...this.tracks];
+        this.renderUserUploadsShelf();
         this.renderCommunityShelf();
         this.renderTracksTable();
         this.renderFeaturedCarousel();
         this.renderRecentsGrid();
+        this.updateSidebarUploadsCount();
       }
     } catch (err) {
       console.warn("Could not load global songs:", err);
@@ -657,14 +821,30 @@ class UsikSpotifyApp {
     const exists = this.tracks.some(t => t.id === newTrack.id || (t.audioUrl && t.audioUrl === newTrack.audioUrl));
     if (exists) return;
 
+    if (!newTrack.mood) {
+      const v = classifyTrackVibe(newTrack);
+      newTrack.mood = v.id.charAt(0).toUpperCase() + v.id.slice(1);
+      if (!newTrack.genre || newTrack.genre === "Community Drop") {
+        newTrack.genre = v.label;
+      }
+    }
+
+    const myIds = this.getMyUploadedIds();
+    if (myIds.has(newTrack.id) || (this.currentUser && newTrack.userId && newTrack.userId === this.currentUser.id)) {
+      newTrack.isCustom = true;
+      newTrack.uploaderName = "You";
+    }
+
     this.communityTracks.unshift(newTrack);
     this.tracks.unshift(newTrack);
     this.queue.unshift(newTrack);
 
+    this.renderUserUploadsShelf();
     this.renderCommunityShelf();
     this.renderTracksTable();
     this.renderFeaturedCarousel();
     this.renderRecentsGrid();
+    this.updateSidebarUploadsCount();
 
     // Subtle celebration toast
     this.showToast(`🎶 ${newTrack.uploaderName} just dropped "${newTrack.title}"!`);
@@ -673,7 +853,7 @@ class UsikSpotifyApp {
   getFilteredTracks() {
     return this.tracks.filter(t => {
       const matchGenre = this.activeGenre === "all" || 
-        t.mood === this.activeGenre ||
+        (t.mood && t.mood.toLowerCase() === this.activeGenre.toLowerCase()) ||
         (t.genre && t.genre.toLowerCase().includes(this.activeGenre.toLowerCase()));
       const q = this.searchQuery.toLowerCase().trim();
       const matchSearch = !q ||
@@ -794,12 +974,57 @@ class UsikSpotifyApp {
     this.switchView("library");
     this.dom.playlistHeroName.textContent = title;
 
-    const tracks = title === "Liked Songs"
-      ? this.tracks.filter(t => this.likedTrackIds.has(t.id))
-      : this.tracks;
+    let tracks = [];
+    if (title === "Liked Songs") {
+      tracks = this.tracks.filter(t => this.likedTrackIds.has(t.id));
+    } else if (title === "Your Uploads") {
+      tracks = this.getUserUploads();
+    } else {
+      tracks = this.tracks;
+    }
+
+    // Toggle sidebar library pill active states
+    if (this.dom.pillUploadsLib) {
+      this.dom.pillUploadsLib.classList.toggle("active", title === "Your Uploads");
+    }
+    if (this.dom.pillLikedLib) {
+      this.dom.pillLikedLib.classList.toggle("active", title === "Liked Songs");
+    }
+    if (this.dom.pillAllLib) {
+      this.dom.pillAllLib.classList.toggle("active", title !== "Your Uploads" && title !== "Liked Songs");
+    }
+
+    // Toggle sidebar item active state
+    if (this.dom.libItemLiked) {
+      this.dom.libItemLiked.classList.toggle("active", title === "Liked Songs");
+    }
+    if (this.dom.libItemUploads) {
+      this.dom.libItemUploads.classList.toggle("active", title === "Your Uploads");
+    }
 
     this.dom.playlistSongsCount.textContent = `${tracks.length} song${tracks.length === 1 ? "" : "s"}`;
     this.dom.libraryTableBody.innerHTML = "";
+
+    if (tracks.length === 0) {
+      const emptyRow = document.createElement("div");
+      emptyRow.style.cssText = "padding: 56px 24px; text-align: center; color: var(--text-muted);";
+      emptyRow.innerHTML = `
+        <div style="font-size: 2.5rem; margin-bottom: 12px;">${title === "Your Uploads" ? "☁️" : "🎵"}</div>
+        <div style="font-size: 1.1rem; font-weight: 600; color: #fff; margin-bottom: 6px;">
+          ${title === "Your Uploads" ? "No uploaded songs yet" : "No songs found"}
+        </div>
+        <div style="font-size: 0.85rem; margin-bottom: 18px;">
+          ${title === "Your Uploads" ? "Import any YouTube link or audio stream to build your personal streaming library." : "Start exploring and add songs to this playlist."}
+        </div>
+        ${title === "Your Uploads" ? `<button class="btn-primary" id="btn-empty-upload-now" style="margin: 0 auto; display: inline-flex; align-items: center; gap: 8px; cursor: pointer;"><span>⚡</span> Upload Your First Song</button>` : ""}
+      `;
+      const btnUploadNow = emptyRow.querySelector("#btn-empty-upload-now");
+      if (btnUploadNow) {
+        btnUploadNow.addEventListener("click", () => this.dom.btnOpenImport.click());
+      }
+      this.dom.libraryTableBody.appendChild(emptyRow);
+      return;
+    }
 
     const current = this.getCurrentTrack();
 
@@ -1134,6 +1359,43 @@ class UsikSpotifyApp {
     this.dom.btnNavSearch.addEventListener("click", () => this.switchView("search"));
     this.dom.libItemLiked.addEventListener("click", () => this.openLibraryView("Liked Songs"));
 
+    if (this.dom.libItemUploads) {
+      this.dom.libItemUploads.addEventListener("click", () => this.openLibraryView("Your Uploads"));
+    }
+
+    if (this.dom.pillAllLib) {
+      this.dom.pillAllLib.addEventListener("click", () => {
+        if (this.dom.pillUploadsLib) this.dom.pillUploadsLib.classList.remove("active");
+        if (this.dom.pillLikedLib) this.dom.pillLikedLib.classList.remove("active");
+        this.dom.pillAllLib.classList.add("active");
+        this.switchView("library");
+      });
+    }
+
+    if (this.dom.pillUploadsLib) {
+      this.dom.pillUploadsLib.addEventListener("click", () => {
+        this.openLibraryView("Your Uploads");
+      });
+    }
+
+    if (this.dom.pillLikedLib) {
+      this.dom.pillLikedLib.addEventListener("click", () => {
+        this.openLibraryView("Liked Songs");
+      });
+    }
+
+    if (this.dom.pillImportLib) {
+      this.dom.pillImportLib.addEventListener("click", () => {
+        this.dom.btnOpenImport.click();
+      });
+    }
+
+    if (this.dom.btnQuickImportMyShelf) {
+      this.dom.btnQuickImportMyShelf.addEventListener("click", () => {
+        this.dom.btnOpenImport.click();
+      });
+    }
+
     // History arrows
     this.dom.btnBack.addEventListener("click", () => this.switchView("home"));
     this.dom.btnForward.addEventListener("click", () => this.switchView("search"));
@@ -1186,10 +1448,18 @@ class UsikSpotifyApp {
     });
 
     this.dom.btnPlaylistPlay.addEventListener("click", () => {
-      const liked = this.tracks.filter(t => this.likedTrackIds.has(t.id));
-      if (liked.length > 0) {
-        this.queue = [...liked];
-        this.playTrackById(liked[0].id);
+      const currentTitle = this.dom.playlistHeroName.textContent || "Liked Songs";
+      let playlistTracks = [];
+      if (currentTitle === "Your Uploads") {
+        playlistTracks = this.getUserUploads();
+      } else if (currentTitle === "Liked Songs") {
+        playlistTracks = this.tracks.filter(t => this.likedTrackIds.has(t.id));
+      } else {
+        playlistTracks = this.tracks;
+      }
+      if (playlistTracks.length > 0) {
+        this.queue = [...playlistTracks];
+        this.playTrackById(playlistTracks[0].id);
       }
     });
 
@@ -1653,6 +1923,7 @@ END $$;`;
   }
 
   async removeCustomTrack(trackId) {
+    this.removeMyUploadedId(trackId);
     if (this.currentUser && this.currentUser.id && this.currentUser.id !== "guest") {
       try {
         await deleteSongFromSupabase(trackId, this.currentUser.id);
@@ -1677,10 +1948,12 @@ END $$;`;
     }
 
     this.saveCurrentUserData();
+    this.renderUserUploadsShelf();
     this.renderCommunityShelf();
     this.renderTracksTable();
     this.renderFeaturedCarousel();
     this.renderRecentsGrid();
+    this.updateSidebarUploadsCount();
     if (this.currentView === "library") {
       this.openLibraryView(this.dom.playlistHeroName.textContent || "Liked Songs");
     }
@@ -1706,57 +1979,54 @@ END $$;`;
       this.currentParsedTrack = null;
     };
 
-    this.dom.btnOpenImport.addEventListener("click", openModal);
-    if (this.dom.pillImportLib) {
-      this.dom.pillImportLib.addEventListener("click", openModal);
+    if (this.dom.btnOpenImport) {
+      this.dom.btnOpenImport.addEventListener("click", openModal);
     }
-    if (this.dom.btnQuickImportShelf) {
-      this.dom.btnQuickImportShelf.addEventListener("click", openModal);
-    }
-    this.dom.btnCloseImportModal.addEventListener("click", closeModal);
+    this.dom.btnCloseImport.addEventListener("click", closeModal);
     this.dom.btnCancelImport.addEventListener("click", closeModal);
     this.dom.addTrackModal.addEventListener("click", (e) => {
       if (e.target === this.dom.addTrackModal) closeModal();
     });
 
-    // Real-time URL Detection & Metadata Fetch
-    this.dom.inputMediaUrl.addEventListener("input", () => {
-      clearTimeout(this._urlDebounceTimer);
-      const val = this.dom.inputMediaUrl.value.trim();
+    // Handle typing / pasting URL
+    let parseDebounce = null;
+    this.dom.inputMediaUrl.addEventListener("input", (e) => {
+      clearTimeout(parseDebounce);
+      const url = e.target.value.trim();
+
+      if (!url) {
+        this.dom.importTypeBadge.style.display = "none";
+        this.dom.importPreviewCard.style.display = "none";
+        this.dom.importLoadingState.style.display = "none";
+        this.dom.importAlert.style.display = "none";
+        this.dom.btnSubmitImport.disabled = true;
+        this.currentParsedTrack = null;
+        return;
+      }
+
+      const mediaType = detectMediaUrl(url);
+      if (mediaType === "unknown") {
+        this.dom.importTypeBadge.style.display = "none";
+        this.dom.importPreviewCard.style.display = "none";
+        this.dom.importAlert.textContent = "Please enter a valid YouTube, YouTube Music, or direct audio link (.mp3, .wav, .m4a, .aac, .ogg).";
+        this.dom.importAlert.style.display = "block";
+        this.dom.btnSubmitImport.disabled = true;
+        return;
+      }
+
       this.dom.importAlert.style.display = "none";
-
-      if (!val) {
-        this.dom.importTypeBadge.style.display = "none";
-        this.dom.importPreviewCard.style.display = "none";
-        this.dom.btnSubmitImport.disabled = true;
-        return;
-      }
-
-      const detected = detectMediaUrl(val);
-      if (detected.error) {
-        this.dom.importTypeBadge.style.display = "none";
-        this.dom.importPreviewCard.style.display = "none";
-        this.dom.btnSubmitImport.disabled = true;
-        return;
-      }
-
-      this.dom.importTypeBadge.textContent = detected.provider || "Audio Stream";
-      this.dom.importTypeBadge.style.display = "block";
+      this.dom.importTypeBadge.textContent = mediaType === "youtube" ? "YouTube Stream" : "Audio Link";
+      this.dom.importTypeBadge.className = `import-badge ${mediaType === "youtube" ? "yt" : "audio"}`;
+      this.dom.importTypeBadge.style.display = "inline-block";
       this.dom.importLoadingState.style.display = "flex";
+      this.dom.importPreviewCard.style.display = "none";
 
-      this._urlDebounceTimer = setTimeout(async () => {
+      parseDebounce = setTimeout(async () => {
         try {
-          const parsed = await parseMediaMetadata(val);
-          this.dom.importLoadingState.style.display = "none";
-
-          if (parsed.error) {
-            this.dom.importAlert.textContent = parsed.error;
-            this.dom.importAlert.style.display = "block";
-            this.dom.btnSubmitImport.disabled = true;
-            return;
-          }
-
+          const parsed = await parseMediaMetadata(url);
           this.currentParsedTrack = parsed;
+
+          this.dom.importLoadingState.style.display = "none";
           this.dom.importPreviewThumb.src = parsed.coverUrl;
           this.dom.importEditTitle.value = parsed.title || "Untitled Track";
           this.dom.importEditArtist.value = parsed.artist || "Unknown Artist";
@@ -1782,9 +2052,18 @@ END $$;`;
       const artist = this.dom.importEditArtist.value.trim() || this.currentParsedTrack.artist || "Unknown Artist";
       const uploaderName = this.currentUser?.user_metadata?.full_name || 
                            this.currentUser?.email?.split("@")[0] || 
-                           "Community";
+                           "You";
 
       let trackId = "custom-" + Date.now();
+
+      const tempTrack = {
+        title,
+        artist,
+        album: this.currentParsedTrack.provider || "Web Stream",
+        genre: "Community Drop"
+      };
+      const vibe = classifyTrackVibe(tempTrack);
+      const moodLabel = vibe.id.charAt(0).toUpperCase() + vibe.id.slice(1);
 
       const newTrack = {
         id: trackId,
@@ -1792,18 +2071,21 @@ END $$;`;
         artist: artist,
         uploaderName: uploaderName,
         album: this.currentParsedTrack.provider || "Web Stream",
-        genre: "Community Drop",
+        genre: vibe.label || "Community Drop",
+        mood: moodLabel,
         duration: 180,
         audioUrl: this.currentParsedTrack.url,
         embedUrl: this.currentParsedTrack.embedUrl || null,
         coverUrl: this.currentParsedTrack.coverUrl,
-        color: "#a855f7",
-        secondaryColor: "#c084fc",
+        color: vibe.color || "#a855f7",
+        secondaryColor: vibe.secondaryColor || "#c084fc",
         type: this.currentParsedTrack.type,
         videoId: this.currentParsedTrack.videoId || null,
         isCustom: true,
         isPublic: true
       };
+
+      this.saveMyUploadedId(newTrack.id);
 
       // Direct insertion to dedicated Supabase 'songs' table (Universal Community pool)
       if (isSupabaseConfigured()) {
@@ -1814,6 +2096,7 @@ END $$;`;
           const savedRow = await saveSongToSupabase(newTrack, currentUserId, uploaderName);
           if (savedRow && savedRow.id) {
             newTrack.id = savedRow.id;
+            this.saveMyUploadedId(savedRow.id);
           }
         } catch (e) {
           console.warn("Could not persist to Supabase songs table:", e);
@@ -1828,15 +2111,36 @@ END $$;`;
       this.tracks.unshift(newTrack);
       this.queue.unshift(newTrack);
 
+      // Reset filters so the new song is immediately visible in the catalog
+      this.activeGenre = "all";
+      this.searchQuery = "";
+      if (this.dom.searchInput) this.dom.searchInput.value = "";
+
       this.saveCurrentUserData();
+      this.renderGenrePills();
+      this.renderUserUploadsShelf();
       this.renderCommunityShelf();
       this.renderTracksTable();
       this.renderFeaturedCarousel();
       this.renderRecentsGrid();
-      this.playTrackById(newTrack.id);
+      this.updateSidebarUploadsCount();
 
       closeModal();
-      this.showToast(`Shared "${newTrack.title}" with the community!`);
+      this.switchView("home");
+
+      // Auto-scroll to user uploads shelf and highlight the newly added song card!
+      setTimeout(() => {
+        const card = document.getElementById(`user-upload-card-${newTrack.id}`);
+        if (card) {
+          card.classList.add("glow-just-added");
+          card.scrollIntoView({ behavior: "smooth", block: "center" });
+        } else if (this.dom.sectionUserUploads) {
+          this.dom.sectionUserUploads.scrollIntoView({ behavior: "smooth", block: "start" });
+        }
+      }, 150);
+
+      this.playTrackById(newTrack.id);
+      this.showToast(`✨ Successfully uploaded "${newTrack.title}"! It is now live in your library & community feed.`);
     });
   }
 
